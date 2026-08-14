@@ -1,0 +1,6 @@
+{
+  "name": "PulseHR Mobile",
+  "description": "Mobile UI/UX app for Employees and Managers featuring live attendance, leave approvals, payslips, performance tracking, team management, helpdesk, announcements, documents, and self-service requests.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
