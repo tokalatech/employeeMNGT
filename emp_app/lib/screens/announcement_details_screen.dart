@@ -1,13 +1,30 @@
 import 'flow_detail_screen.dart';
-
+import '../models/announcement_model.dart';
 class AnnouncementDetailsScreen extends FlowDetailScreen {
-  const AnnouncementDetailsScreen({super.key})
+  AnnouncementDetailsScreen({super.key,required Announcement announcement,})
     : super(
-        title: 'Announcement',
-        subtitle: 'Official company notice',
-        sections: const [
-          ('Company update', 'Q3 all-hands meeting and product roadmap'),
-          ('Published by', 'People Operations'),
+    title: announcement.title,
+    subtitle:
+    '${announcementCategoryToString(announcement.category)} · ${announcement.publishedDate}',
+    sections: [
+      (
+      'Summary',
+      announcement.summary,
+      ),
+      (
+      'Announcement',
+      announcement.content,
+      ),
+      (
+      'Published by',
+      announcement.author,
+      ),
+      (
+      'Priority',
+      announcement.priority == AnnouncementPriority.high
+          ? 'High'
+          : 'Normal',
+      ),
         ],
       );
 }

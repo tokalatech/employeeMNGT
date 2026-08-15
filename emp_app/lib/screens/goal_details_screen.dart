@@ -1,15 +1,35 @@
 import 'flow_detail_screen.dart';
-
+import '../models/goal_model.dart';
 class GoalDetailsScreen extends FlowDetailScreen {
-  const GoalDetailsScreen({super.key})
+  final Goal goal;
+  GoalDetailsScreen({super.key,required this.goal})
     : super(
-        title: 'Goal Details',
-        subtitle: 'Objective progress and feedback',
-        sections: const [
-          ('Progress', '84% complete · On Track'),
+        title: goal.title,
+        subtitle: goal.description,
+        sections: [
           (
-            'Manager feedback',
-            'Strong work; continue the current delivery pace',
+          'Progress',
+          '${goal.progressPercent}% complete · ${goalStatusToString(goal.status)}',
+          ),
+          (
+          'KPI',
+          goal.kpi,
+          ),
+          (
+          'Target',
+          goal.target,
+          ),
+          (
+          'Current Value',
+          goal.currentValue,
+          ),
+          (
+          'Deadline',
+          goal.deadline,
+          ),
+          (
+          'Manager Feedback',
+          goal.managerComments ?? 'No manager comments.',
           ),
         ],
       );
