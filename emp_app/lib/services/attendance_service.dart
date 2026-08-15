@@ -3,14 +3,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/attendance_model.dart';
 import 'auth_service.dart';
 import 'firestore_service.dart';
+import 'user_service.dart';
 
 class AttendanceService {
-  AttendanceService({FirestoreService? firestoreService, AuthService? authService})
-      : _firestore = firestoreService ?? FirestoreService(),
-        _auth = authService ?? AuthService();
+  AttendanceService({
+    FirestoreService? firestoreService,
+    AuthService? authService,
+    UserService? userService,
+  })  : _firestore = firestoreService ?? FirestoreService(),
+        _auth = authService ?? AuthService(),
+        _userService = userService ?? UserService();
 
   final FirestoreService _firestore;
   final AuthService _auth;
+  final UserService _userService;
   static const String attendanceCollection = 'attendance';
   static const String correctionCollection = 'attendance_corrections';
 
@@ -38,18 +44,39 @@ class AttendanceService {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    Query<Map<String, dynamic>> query = _firestore.collection(attendanceCollection)
+    Query<Map<String, dynamic>> query = _firestore
+        .collection(attendanceCollection)
         .where('employeeId', isEqualTo: _uid);
+
     if (startDate != null) {
-      query = query.where('date', isGreaterThanOrEqualTo: _dateKey(startDate));
+      query = query.where(
+        'date',
+        isGreaterThanOrEqualTo: _dateKey(startDate),
+      );
     }
+
     if (endDate != null) {
-      query = query.where('date', isLessThanOrEqualTo: _dateKey(endDate));
+      query = query.where(
+        'date',
+        isLessThanOrEqualTo: _dateKey(endDate),
+      );
     }
-    final snapshot = await query.orderBy('date', descending: true).get();
-    return snapshot.docs
-        .map((doc) => AttendanceRecord.fromMap({...doc.data(), 'id': doc.id}))
+
+    final snapshot = await query.get();
+
+    final records = snapshot.docs
+        .map(
+          (doc) => AttendanceRecord.fromMap({
+        ...doc.data(),
+        'id': doc.id,
+      }),
+    )
         .toList();
+
+    // Sort locally instead of using Firestore orderBy().
+    records.sort((a, b) => b.date.compareTo(a.date));
+
+    return records;
   }
 
   Stream<AttendanceRecord?> watchToday() {
@@ -66,18 +93,36 @@ class AttendanceService {
     }));
   }
 
+  static const int shiftStartHour = 9;
+  static const int shiftStartMinute = 0;
+  static const int lateGraceMinutes = 15;
+
   Future<String> clockIn({String? notes}) async {
     final now = DateTime.now();
     final date = _dateKey(now);
     final existing = await getAttendanceForDate(now);
     if (existing?.clockIn != null) throw StateError('Already checked in today.');
 
+    final shiftStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      shiftStartHour,
+      shiftStartMinute,
+    ).add(const Duration(minutes: lateGraceMinutes));
+
+    final status = now.isAfter(shiftStart) ? 'Late' : 'Present';
+
+    // Needed so managers can query team attendance by managerId.
+    final profile = await _userService.getCurrentUser();
+
     final id = existing?.id ?? _firestore.newId(attendanceCollection);
     await _firestore.setDocument('$attendanceCollection/$id', {
       'id': id,
       'employeeId': _uid,
+      'managerId': profile?.managerId ?? '',
       'date': date,
-      'status': 'Present',
+      'status': status,
       'clockIn': _timeKey(now),
       'clockOut': null,
       'totalHours': null,
@@ -109,22 +154,45 @@ class AttendanceService {
     });
   }
 
-  Future<String> submitCorrection(AttendanceCorrectionRequest request) async {
-    final id = request.id.isEmpty ? _firestore.newId(correctionCollection) : request.id;
-    await _firestore.setDocument('$correctionCollection/$id', {
-      ...request.toMap(),
-      'id': id,
-      'employeeId': _uid,
-      'status': 'Pending',
-    });
-    if (request.id.isNotEmpty) {
-      final attendance = await getAttendanceForDate(_parseDate(request.date));
+  Future<String> submitCorrection(
+      AttendanceCorrectionRequest request,
+      ) async {
+    final id = request.id.isEmpty
+        ? _firestore.newId(correctionCollection)
+        : request.id;
+
+    await _firestore.setDocument(
+      '$correctionCollection/$id',
+      {
+        ...request.toMap(),
+        'id': id,
+        'employeeId': _uid,
+        'status': 'Pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    // Mark the attendance record as having a correction request.
+    try {
+      final attendance = await getAttendanceForDate(
+        _parseDate(request.date),
+      );
+
       if (attendance != null) {
-        await _firestore.updateDocument('$attendanceCollection/${attendance.id}', {
-          'isCorrectionRequested': true,
-        });
+        await _firestore.updateDocument(
+          '$attendanceCollection/${attendance.id}',
+          {
+            'isCorrectionRequested': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+        );
       }
+    } catch (_) {
+      // The correction request has already been created.
+      // Don't fail the whole request just because
+      // the attendance record could not be updated.
     }
+
     return id;
   }
 

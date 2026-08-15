@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-
-// import '../theme/app_theme.dart';
 import '../widgets/pulse_card.dart';
 
-/// Reusable local-data detail flow used by feature routes until API repositories are connected.
 class FlowDetailScreen extends StatelessWidget {
   const FlowDetailScreen({
     super.key,
@@ -11,10 +8,14 @@ class FlowDetailScreen extends StatelessWidget {
     required this.subtitle,
     required this.sections,
     this.action = 'Done',
+    this.onAction,
+    this.actionEnabled = true,
   });
 
   final String title, subtitle, action;
   final List<(String, String)> sections;
+  final VoidCallback? onAction;
+  final bool actionEnabled;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -25,7 +26,7 @@ class FlowDetailScreen extends StatelessWidget {
         Text(subtitle, style: const TextStyle(color: Color(0xFF64748B))),
         const SizedBox(height: 16),
         ...sections.map(
-          (section) => Padding(
+              (section) => Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: PulseCard(
               child: Column(
@@ -49,11 +50,14 @@ class FlowDetailScreen extends StatelessWidget {
         PrimaryButton(
           label: action,
           icon: Icons.check_circle_outline,
-          onPressed: () {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('$title updated locally.')));
-          },
+          onPressed: !actionEnabled
+              ? null
+              : onAction ??
+                  () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('$title updated locally.')),
+                );
+              },
         ),
       ],
     ),

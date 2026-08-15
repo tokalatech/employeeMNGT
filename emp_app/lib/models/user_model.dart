@@ -19,6 +19,7 @@ class UserModel {
   final String? dob;
   final String? address;
   final EmergencyContact? emergencyContact;
+  final String? managerId;
 
   UserModel({
     required this.id,
@@ -36,6 +37,7 @@ class UserModel {
     this.dob,
     this.address,
     this.emergencyContact,
+    this.managerId
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
@@ -56,6 +58,7 @@ class UserModel {
       phone: map['phone'],
       dob: map['dob'],
       address: map['address'],
+      managerId:map['managerId'],
       emergencyContact: map['emergencyContact'] != null
           ? EmergencyContact.fromMap(
         Map<String, dynamic>.from(map['emergencyContact']),
@@ -81,6 +84,7 @@ class UserModel {
       'dob': dob,
       'address': address,
       'emergencyContact': emergencyContact?.toMap(),
+      'managerId': managerId,
     };
   }
 }

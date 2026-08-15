@@ -1,32 +1,14 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pulse_card.dart';
-
-class LeaveItem {
-  const LeaveItem({
-    required this.type,
-    required this.dates,
-    required this.days,
-    required this.status,
-    required this.reason,
-    this.attachment,
-  });
-
-  final String type, dates, status, reason;
-  final int days;
-  final String? attachment;
-}
+import '../models/leave_model.dart';
+import '../services/leave_service.dart';
+import '../models/user_model.dart';
+import '../services/user_service.dart';
 
 class LeaveScreen extends StatefulWidget {
-  const LeaveScreen({
-    super.key,
-    required this.leaves,
-    required this.onSubmit,
-    this.manager = false,
-  });
+  const LeaveScreen({super.key, this.manager = false});
 
-  final List<LeaveItem> leaves;
-  final ValueChanged<LeaveItem> onSubmit;
   final bool manager;
 
   @override
@@ -34,23 +16,9 @@ class LeaveScreen extends StatefulWidget {
 }
 
 class _LeaveScreenState extends State<LeaveScreen> {
+  final _leaveService = LeaveService();
+  final _userService = UserService();
   String _tab = 'Balances';
-  final _approvals = <LeaveItem>[
-    const LeaveItem(
-      type: 'Casual Leave',
-      dates: 'Aug 18 – Aug 19, 2026',
-      days: 2,
-      status: 'Pending',
-      reason: 'Family event',
-    ),
-    const LeaveItem(
-      type: 'Sick Leave',
-      dates: 'Aug 14, 2026',
-      days: 1,
-      status: 'Pending',
-      reason: 'Medical rest',
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -81,11 +49,11 @@ class _LeaveScreenState extends State<LeaveScreen> {
       if (_tab == 'Balances') ...[
         _balances(),
         const SizedBox(height: 15),
-        ...widget.leaves.map(_leave),
+        _history(),
       ] else if (_tab == 'History')
-        ...widget.leaves.map(_leave)
+        _history()
       else
-        ..._approvals.map(_approval),
+        _approvals(),
     ],
   );
 
@@ -97,72 +65,78 @@ class _LeaveScreenState extends State<LeaveScreen> {
     ),
     child: Row(
       children:
-          (widget.manager
-                  ? ['Balances', 'History', 'Approvals']
-                  : ['Balances', 'History'])
-              .map(
-                (x) => Expanded(
-                  child: TextButton(
-                    onPressed: () => setState(() => _tab = x),
-                    style: TextButton.styleFrom(
-                      backgroundColor: _tab == x
-                          ? Theme.of(context).colorScheme.surface
-                          : null,
-                    ),
-                    child: Text(
-                      x,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: _tab == x ? AppColors.primary : null,
-                      ),
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-    ),
-  );
-
-  Widget _balances() => PulseCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'YOUR LEAVE BALANCE',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF64748B),
+      (widget.manager
+          ? ['Balances', 'History', 'Approvals']
+          : ['Balances', 'History'])
+          .map(
+            (x) => Expanded(
+          child: TextButton(
+            onPressed: () => setState(() => _tab = x),
+            style: TextButton.styleFrom(
+              backgroundColor: _tab == x
+                  ? Theme.of(context).colorScheme.surface
+                  : null,
+            ),
+            child: Text(
+              x,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: _tab == x ? AppColors.primary : null,
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 13),
-        Row(
-          children: [
-            _balance('Paid Leave', 12, 18, AppColors.primary),
-            _balance('Casual Leave', 5, 8, AppColors.warning),
-            _balance('Sick Leave', 7, 10, AppColors.success),
-          ],
-        ),
-      ],
+      )
+          .toList(),
     ),
   );
 
-  Widget _balance(String t, int left, int total, Color color) => Expanded(
+  Widget _balances() => StreamBuilder<List<LeaveBalance>>(
+    stream: _leaveService.watchMyLeaveBalances(),
+    builder: (context, snap) {
+      if (snap.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final balances = snap.data ?? const [];
+      if (balances.isEmpty) {
+        return const PulseCard(child: Text('No leave balances found.'));
+      }
+      return PulseCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'YOUR LEAVE BALANCE',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 13),
+            Row(children: balances.map(_balance).toList()),
+          ],
+        ),
+      );
+    },
+  );
+
+  Widget _balance(LeaveBalance b) => Expanded(
     child: Padding(
       padding: const EdgeInsets.all(3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            t,
+            leaveTypeToString(b.type),
             style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
           ),
-          Text('$left days left', style: const TextStyle(fontSize: 10)),
+          Text('${b.remaining} days left', style: const TextStyle(fontSize: 10)),
           const SizedBox(height: 7),
           LinearProgressIndicator(
-            value: left / total,
-            color: color,
+            value: b.total == 0 ? 0 : b.remaining / b.total,
+            color: _balanceColor(b.color),
             minHeight: 6,
           ),
         ],
@@ -170,7 +144,35 @@ class _LeaveScreenState extends State<LeaveScreen> {
     ),
   );
 
-  Widget _leave(LeaveItem item) => Padding(
+  // Parses a "#RRGGBB" hex string from Firestore into a Color.
+  // Falls back to a default so a malformed value never crashes the UI.
+  Color _balanceColor(String hex) {
+    try {
+      final clean = hex.replaceFirst('#', '').padLeft(6, '0');
+      return Color(int.parse('FF$clean', radix: 16));
+    } catch (_) {
+      return AppColors.primary;
+    }
+  }
+
+  Widget _history() => StreamBuilder<List<LeaveRequest>>(
+    stream: _leaveService.watchMyLeaves(),
+    builder: (context, snap) {
+      if (snap.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final leaves = snap.data ?? const [];
+      if (leaves.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.only(top: 20),
+          child: Center(child: Text('No leave requests yet.')),
+        );
+      }
+      return Column(children: leaves.map(_leave).toList());
+    },
+  );
+
+  Widget _leave(LeaveRequest item) => Padding(
     padding: const EdgeInsets.only(bottom: 9),
     child: PulseCard(
       onTap: () => _details(item),
@@ -181,21 +183,21 @@ class _LeaveScreenState extends State<LeaveScreen> {
           child: Icon(Icons.event_note, color: AppColors.primary),
         ),
         title: Text(
-          item.type,
+          leaveTypeToString(item.leaveType),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(
-          '${item.dates} · ${item.days} days',
+          '${item.startDate} – ${item.endDate} · ${item.totalDays} days',
           style: const TextStyle(fontSize: 11),
         ),
         trailing: Text(
-          item.status,
+          leaveRequestStatusToString(item.status),
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w800,
-            color: item.status == 'Approved'
+            color: item.status == LeaveRequestStatus.approved
                 ? AppColors.success
-                : item.status == 'Rejected'
+                : item.status == LeaveRequestStatus.rejected
                 ? AppColors.danger
                 : AppColors.warning,
           ),
@@ -204,20 +206,37 @@ class _LeaveScreenState extends State<LeaveScreen> {
     ),
   );
 
-  Widget _approval(LeaveItem item) => Padding(
+  Widget _approvals() => StreamBuilder<List<LeaveRequest>>(
+    stream: _leaveService.watchPendingApprovals(),
+    builder: (context, snap) {
+      if (snap.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final pending = snap.data ?? const [];
+      if (pending.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.only(top: 20),
+          child: Center(child: Text('No pending approvals.')),
+        );
+      }
+      return Column(children: pending.map(_approval).toList());
+    },
+  );
+
+  Widget _approval(LeaveRequest item) => Padding(
     padding: const EdgeInsets.only(bottom: 9),
     child: PulseCard(
       child: Column(
         children: [
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const CircleAvatar(child: Text('TM')),
+            leading: CircleAvatar(child: Text(_initials(item.employeeName))),
             title: Text(
-              item.type,
+              leaveTypeToString(item.leaveType),
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             subtitle: Text(
-              '${item.dates}\n${item.reason}',
+              '${item.startDate} – ${item.endDate}\n${item.reason}',
               style: const TextStyle(fontSize: 11),
               maxLines: 2,
             ),
@@ -245,42 +264,68 @@ class _LeaveScreenState extends State<LeaveScreen> {
     ),
   );
 
-  void _review(LeaveItem item, bool approved) {
-    setState(() => _approvals.remove(item));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Leave request ${approved ? 'approved' : 'rejected'}'),
-      ),
-    );
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    if (parts.isEmpty) return '?';
+    return parts.take(2).map((p) => p[0].toUpperCase()).join();
   }
 
-  void _details(LeaveItem item) => showModalBottomSheet(
+  void _review(LeaveRequest r, bool approved) async {
+    try {
+      if (approved) {
+        await _leaveService.approveLeave(r.id);
+      } else {
+        await _leaveService.rejectLeave(r.id, reason: 'Rejected by manager');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Leave request ${approved ? 'approved' : 'rejected'}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to review request: $e')),
+      );
+    }
+  }
+
+  void _details(LeaveRequest item) => showModalBottomSheet(
     context: context,
     showDragHandle: true,
-    builder: (context) => Padding(
+    builder: (sheetContext) => Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            item.type,
+            leaveTypeToString(item.leaveType),
             style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 10),
-          Text(item.dates),
-          Text('${item.days} days · ${item.status}'),
+          Text('${item.startDate} – ${item.endDate}'),
+          Text('${item.totalDays} days · ${leaveRequestStatusToString(item.status)}'),
           const SizedBox(height: 8),
           Text(item.reason),
-          if (item.attachment != null)
+          if (item.attachmentName != null)
             TextButton.icon(
               onPressed: () {},
               icon: const Icon(Icons.attachment),
-              label: Text(item.attachment!),
+              label: Text(item.attachmentName!),
             ),
-          if (item.status == 'Pending')
+          if (item.status == LeaveRequestStatus.pending)
             OutlinedButton.icon(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () async {
+                Navigator.pop(sheetContext);
+                try {
+                  await _leaveService.cancelLeave(item.id);
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to cancel request: $e')),
+                  );
+                }
+              },
               icon: const Icon(Icons.cancel_outlined),
               label: const Text('Cancel Request'),
             ),
@@ -319,14 +364,14 @@ class _LeaveScreenState extends State<LeaveScreen> {
               DropdownButtonFormField<String>(
                 initialValue: type,
                 items:
-                    const [
-                          'Paid Leave',
-                          'Casual Leave',
-                          'Sick Leave',
-                          'Maternity/Paternity',
-                        ]
-                        .map((x) => DropdownMenuItem(value: x, child: Text(x)))
-                        .toList(),
+                const [
+                  'Paid Leave',
+                  'Casual Leave',
+                  'Sick Leave',
+                  'Maternity/Paternity',
+                ]
+                    .map((x) => DropdownMenuItem(value: x, child: Text(x)))
+                    .toList(),
                 onChanged: (x) => setSheet(() => type = x!),
               ),
               const SizedBox(height: 10),
@@ -366,23 +411,45 @@ class _LeaveScreenState extends State<LeaveScreen> {
                 icon: Icons.send,
                 onPressed: range == null || reason.text.trim().isEmpty
                     ? null
-                    : () {
-                        final r = range!;
-                        widget.onSubmit(
-                          LeaveItem(
-                            type: type,
-                            dates:
-                                '${r.start.day}/${r.start.month}/${r.start.year} – ${r.end.day}/${r.end.month}/${r.end.year}',
-                            days: r.duration.inDays + 1,
-                            status: 'Pending',
-                            reason: reason.text.trim(),
-                            attachment: attachment
-                                ? 'supporting_document.pdf'
-                                : null,
-                          ),
-                        );
-                        Navigator.pop(sheet);
-                      },
+                    : () async {
+                  final r = range!;
+                  try {
+                    final UserModel? profile = await _userService.getCurrentUser();
+                    if (profile == null) {
+                      if (!sheet.mounted) return;
+                      ScaffoldMessenger.of(sheet).showSnackBar(
+                        const SnackBar(content: Text('Could not load your profile. Please try again.')),
+                      );
+                      return;
+                    }
+                    await _leaveService.applyLeave(
+                      LeaveRequest(
+                        id: '',
+                        employeeId: '', // filled server-side by LeaveService from _uid
+                        managerId: profile.managerId ?? '',
+                        employeeName: profile.name,
+                        employeeAvatar: profile.avatar,
+                        department: profile.department,
+                        leaveType: leaveTypeFromString(type),
+                        startDate: r.start.toIso8601String(),
+                        endDate: r.end.toIso8601String(),
+                        totalDays: r.duration.inDays + 1,
+                        reason: reason.text.trim(),
+                        attachmentName:
+                        attachment ? 'supporting_document.pdf' : null,
+                        status: LeaveRequestStatus.pending,
+                        appliedDate: '',
+                      ),
+                    );
+                    if (sheet.mounted) Navigator.pop(sheet);
+                  } catch (e) {
+                    print('applyLeave failed: $e');
+                    if (!sheet.mounted) return;
+                    ScaffoldMessenger.of(sheet).showSnackBar(
+                      SnackBar(content: Text('Failed to submit request: $e')),
+                    );
+                  }
+                },
               ),
             ],
           ),

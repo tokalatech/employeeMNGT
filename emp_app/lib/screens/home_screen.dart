@@ -2,35 +2,35 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pulse_card.dart';
-import 'leave_screen.dart';
+import '../models/attendance_model.dart';
+import '../models/leave_model.dart';
+import '../services/attendance_service.dart';
+import '../services/leave_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.manager,
-    required this.working,
-    required this.clockedIn,
-    required this.onClock,
     required this.onNavigate,
-    required this.leaves,
   });
 
-  final bool manager, working;
-  final DateTime? clockedIn;
-  final VoidCallback onClock;
+  final bool manager;
   final ValueChanged<String> onNavigate;
-  final List<LeaveItem> leaves;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _leaveService = LeaveService();
+  final _attendanceService = AttendanceService();
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    // Ticks the UI every second so a live "working" timer can redraw itself
+    // off the current record's clockIn time.
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -42,11 +42,40 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  String get _elapsed {
-    final d = widget.clockedIn == null
-        ? Duration.zero
-        : DateTime.now().difference(widget.clockedIn!);
+  DateTime? _clockedInTime(AttendanceRecord? record) {
+    final clockIn = record?.clockIn;
+    if (clockIn == null) return null;
+    final parts = clockIn.split(':');
+    if (parts.length < 2) return null;
+    final now = DateTime.now();
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+      int.tryParse(parts[0]) ?? 0,
+      int.tryParse(parts[1]) ?? 0,
+    );
+  }
+
+  String _elapsed(DateTime? clockedIn) {
+    if (clockedIn == null) return '00:00:00';
+    final d = DateTime.now().difference(clockedIn);
     return '${d.inHours.toString().padLeft(2, '0')}:${(d.inMinutes % 60).toString().padLeft(2, '0')}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _handleClock(bool working) async {
+    try {
+      if (working) {
+        await _attendanceService.clockOut();
+      } else {
+        await _attendanceService.clockIn();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Bad state: ', ''))),
+      );
+    }
   }
 
   @override
@@ -131,72 +160,98 @@ class _HomeScreenState extends State<HomeScreen> {
     ],
   );
 
-  Widget _attendance() => Container(
-    padding: const EdgeInsets.all(19),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [AppColors.navy, Color(0xFF1A263A)],
-      ),
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  Widget _attendance() => StreamBuilder<AttendanceRecord?>(
+    stream: _attendanceService.watchToday(),
+    builder: (context, snap) {
+      final record = snap.data;
+      final working = record?.clockIn != null && record?.clockOut == null;
+      final shiftCompleted = record?.clockIn != null && record?.clockOut != null;
+      final clockedInTime = _clockedInTime(record);
+
+      return Container(
+        padding: const EdgeInsets.all(19),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [AppColors.navy, Color(0xFF1A263A)],
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.access_time, color: Color(0xFFA5B4FC), size: 17),
-            const SizedBox(width: 7),
-            const Text(
-              'Wed, Aug 13',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+            Row(
+              children: [
+                const Icon(Icons.access_time, color: Color(0xFFA5B4FC), size: 17),
+                const SizedBox(width: 7),
+                Text(
+                  MaterialLocalizations.of(context)
+                      .formatShortDate(DateTime.now()),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const Spacer(),
+                Text(
+                  working
+                      ? 'WORKING'
+                      : shiftCompleted
+                      ? 'COMPLETED'
+                      : 'NOT CHECKED IN',
+                  style: TextStyle(
+                    color: working
+                        ? const Color(0xFF6EE7B7)
+                        : const Color(0xFFCBD5E1),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
-            const Spacer(),
+            const SizedBox(height: 15),
             Text(
-              widget.working ? 'WORKING' : 'NOT CHECKED IN',
-              style: TextStyle(
-                color: widget.working
-                    ? const Color(0xFF6EE7B7)
-                    : const Color(0xFFCBD5E1),
-                fontSize: 10,
+              working
+                  ? 'WORKING TIMER'
+                  : shiftCompleted
+                  ? 'SHIFT COMPLETED'
+                  : 'NOT CHECKED IN',
+              style: const TextStyle(
+                color: Color(0xFFC7D2FE),
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
             ),
+            Text(
+              working
+                  ? _elapsed(clockedInTime)
+                  : shiftCompleted
+                  ? 'Shift completed'
+                  : 'Ready to start your shift?',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: working ? 'monospace' : null,
+                fontSize: working ? 30 : 19,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            Text(
+              working
+                  ? 'Clocked in at ${record!.clockIn}'
+                  : shiftCompleted
+                  ? 'Clocked in at ${record!.clockIn} · Clocked out at ${record.clockOut}'
+                  : 'Standard shift: 09:00 AM - 06:00 PM',
+              style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFF334155)),
+            if (!shiftCompleted)
+              PrimaryButton(
+                label: working ? 'Clock Out Shift' : 'Clock In Now',
+                icon: working ? Icons.stop : Icons.play_arrow,
+                color: working ? AppColors.danger : AppColors.success,
+                onPressed: () => _handleClock(working),
+              ),
           ],
         ),
-        const SizedBox(height: 15),
-        Text(
-          widget.working ? 'WORKING TIMER' : 'NOT CHECKED IN',
-          style: const TextStyle(
-            color: Color(0xFFC7D2FE),
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          widget.working ? _elapsed : 'Ready to start your shift?',
-          style: TextStyle(
-            color: Colors.white,
-            fontFamily: widget.working ? 'monospace' : null,
-            fontSize: widget.working ? 30 : 19,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        Text(
-          widget.working
-              ? 'Clocked in at ${TimeOfDay.fromDateTime(widget.clockedIn!).format(context)}'
-              : 'Standard shift: 09:00 AM - 06:00 PM',
-          style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
-        ),
-        const SizedBox(height: 16),
-        const Divider(color: Color(0xFF334155)),
-        PrimaryButton(
-          label: widget.working ? 'Clock Out Shift' : 'Clock In Now',
-          icon: widget.working ? Icons.stop : Icons.play_arrow,
-          color: widget.working ? AppColors.danger : AppColors.success,
-          onPressed: widget.onClock,
-        ),
-      ],
-    ),
+      );
+    },
   );
 
   Widget _quick(IconData icon, String text, String target) => Expanded(
@@ -237,71 +292,103 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       const SizedBox(height: 9),
-      PulseCard(
-        onTap: () => widget.onNavigate('leaveApprovals'),
-        child: const ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.fact_check_outlined, color: AppColors.warning),
-          title: Text(
-            'Leave Approvals',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          subtitle: Text(
-            '1 pending team request',
-            style: TextStyle(fontSize: 11),
-          ),
-          trailing: Icon(Icons.chevron_right),
-        ),
+      StreamBuilder<List<LeaveRequest>>(
+        stream: _leaveService.watchPendingApprovals(),
+        builder: (context, snap) {
+          final count = snap.data?.length ?? 0;
+          return PulseCard(
+            onTap: () => widget.onNavigate('leaveApprovals'),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.fact_check_outlined, color: AppColors.warning),
+              title: const Text(
+                'Leave Approvals',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text(
+                count == 0 ? 'No pending requests' : '$count pending team request${count == 1 ? '' : 's'}',
+                style: const TextStyle(fontSize: 11),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+            ),
+          );
+        },
       ),
     ],
   );
 
-  Widget _balances() => PulseCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'LEAVE BALANCES',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF64748B),
+  Widget _balances() => StreamBuilder<List<LeaveBalance>>(
+    stream: _leaveService.watchMyLeaveBalances(),
+    builder: (context, snap) {
+      if (snap.connectionState == ConnectionState.waiting) {
+        return const PulseCard(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(12),
+              child: CircularProgressIndicator(),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Row(
+        );
+      }
+      final balances = snap.data ?? const [];
+      if (balances.isEmpty) {
+        return const PulseCard(child: Text('No leave balances found.'));
+      }
+      return PulseCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _balance('Paid', 12, 18, AppColors.primary),
-            _balance('Casual', 5, 8, AppColors.warning),
-            _balance('Sick', 7, 10, AppColors.success),
+            const Text(
+              'LEAVE BALANCES',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(children: balances.map(_balance).toList()),
           ],
         ),
-      ],
-    ),
+      );
+    },
   );
 
-  Widget _balance(String name, int n, int total, Color color) => Expanded(
+  Widget _balance(LeaveBalance b) => Expanded(
     child: Padding(
       padding: const EdgeInsets.all(3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(name, style: const TextStyle(fontSize: 10)),
+          Text(leaveTypeToString(b.type), style: const TextStyle(fontSize: 10)),
           Text(
-            '$n / $total',
+            '${b.remaining} / ${b.total}',
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
           ),
-          LinearProgressIndicator(value: n / total, color: color, minHeight: 5),
+          LinearProgressIndicator(
+            value: b.total == 0 ? 0 : b.remaining / b.total,
+            color: _balanceColor(b.color),
+            minHeight: 5,
+          ),
         ],
       ),
     ),
   );
 
+  Color _balanceColor(String hex) {
+    try {
+      final clean = hex.replaceFirst('#', '').padLeft(6, '0');
+      return Color(int.parse('FF$clean', radix: 16));
+    } catch (_) {
+      return AppColors.primary;
+    }
+  }
+
   Widget _list(
-    IconData icon,
-    String title,
-    List<List<String>> rows,
-  ) => PulseCard(
+      IconData icon,
+      String title,
+      List<List<String>> rows,
+      ) => PulseCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -314,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 8),
         ...rows.map(
-          (r) => ListTile(
+              (r) => ListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
             title: Text(
