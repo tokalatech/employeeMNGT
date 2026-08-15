@@ -260,6 +260,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       );
     }
 
+    final hasClockedIn = _todayAttendance?.clockIn != null;
+    final hasClockedOut = _todayAttendance?.clockOut != null;
+
+    final shiftCompleted = hasClockedIn && hasClockedOut;
+
     return Column(
       children: [
         Container(
@@ -277,6 +282,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // DATE
               Text(
                 MaterialLocalizations.of(context)
                     .formatFullDate(DateTime.now())
@@ -290,9 +296,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
               const SizedBox(height: 15),
 
+              // MAIN STATUS / TIMER
               Text(
                 _working
                     ? _time
+                    : shiftCompleted
+                    ? 'Shift completed'
                     : 'Ready to start your shift?',
                 style: TextStyle(
                   color: Colors.white,
@@ -302,41 +311,91 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
               ),
 
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
 
-              Text(
-                _working
-                    ? 'Clocked in at ${_todayAttendance!.clockIn}'
-                    : 'Standard shift · 09:00 AM – 06:00 PM',
-                style: const TextStyle(
-                  color: Color(0xFFCBD5E1),
-                  fontSize: 12,
+              // SHIFT DETAILS
+              if (_working)
+                Text(
+                  'Clocked in at ${_todayAttendance!.clockIn}',
+                  style: const TextStyle(
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 12,
+                  ),
+                )
+              else if (shiftCompleted)
+                Text(
+                  'Clocked in at ${_todayAttendance!.clockIn} · '
+                      'Clocked out at ${_todayAttendance!.clockOut}',
+                  style: const TextStyle(
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 12,
+                  ),
+                )
+              else
+                const Text(
+                  'Standard shift · 09:00 AM – 06:00 PM',
+                  style: TextStyle(
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 12,
+                  ),
                 ),
-              ),
 
               const SizedBox(height: 18),
 
-              PrimaryButton(
-                label: _clockActionLoading
-                    ? 'Please wait...'
-                    : _working
-                    ? 'Clock Out Shift'
-                    : 'Clock In Now',
-                icon: _working
-                    ? Icons.stop
-                    : Icons.play_arrow,
-                onPressed:
-                _clockActionLoading ? () {} : _handleClock,
-                color: _working
-                    ? AppColors.danger
-                    : AppColors.success,
-              ),
+              // CLOCK BUTTON
+              if (!shiftCompleted)
+                PrimaryButton(
+                  label: _clockActionLoading
+                      ? 'Please wait...'
+                      : _working
+                      ? 'Clock Out Shift'
+                      : 'Clock In Now',
+                  icon: _working
+                      ? Icons.stop
+                      : Icons.play_arrow,
+                  onPressed:
+                  _clockActionLoading ? () {} : _handleClock,
+                  color: _working
+                      ? AppColors.danger
+                      : AppColors.success,
+                )
+              else
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(
+                      alpha: 0.15,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        color: AppColors.success,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Today\'s shift completed',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
 
         const SizedBox(height: 14),
 
+        // CORRECTION
         PulseCard(
           onTap: _openCorrection,
           child: const ListTile(
@@ -366,6 +425,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   // HISTORY
   // ---------------------------------------------------------------------------
 
+
+  String _statusLabel(AttendanceRecordStatus status) {
+    switch (status) {
+      case AttendanceRecordStatus.present:
+        return 'Present';
+      case AttendanceRecordStatus.late:
+        return 'Late';
+      case AttendanceRecordStatus.halfDay:
+        return 'Half Day';
+      case AttendanceRecordStatus.absent:
+        return 'Absent';
+      case AttendanceRecordStatus.onLeave:
+        return 'On Leave';
+    }
+  }
   Widget _history() {
     if (_loadingHistory) {
       return const Padding(
@@ -376,10 +450,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       );
     }
 
+
+
     final filteredRecords = _records.where((record) {
       if (_filter == 'All') return true;
 
-      return record.status.name.toLowerCase() == _filter.toLowerCase();
+      return _statusLabel(record.status) == _filter;
     }).toList();
 
     return Column(
@@ -449,7 +525,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
 
                 trailing: Text(
-                  record.status.name,
+                  _statusLabel(record.status),
                   style: TextStyle(
                     color: _statusColor(record.status),
                     fontSize: 10,
@@ -602,7 +678,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
             const SizedBox(height: 14),
 
-            Text('Status: ${record.status.name}'),
+            Text('Status: ${_statusLabel(record.status)}'),
 
             Text(
               'Clock in: ${record.clockIn ?? '--'}',
@@ -633,9 +709,21 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   // ---------------------------------------------------------------------------
 
   void _openCorrection() {
-    final date = TextEditingController();
-    final clockIn = TextEditingController();
-    final clockOut = TextEditingController();
+    final today = DateTime.now();
+
+    final date = TextEditingController(
+      text: _formatDate(today),
+    );
+    AttendanceRecord? selectedRecord = _todayAttendance;
+
+    final clockIn = TextEditingController(
+      text: _todayAttendance?.clockIn ?? '',
+    );
+
+    final clockOut = TextEditingController(
+      text: _todayAttendance?.clockOut ?? '',
+    );
+
     final reason = TextEditingController();
 
     showModalBottomSheet(
@@ -649,92 +737,148 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           20,
           20 + MediaQuery.of(sheet).viewInsets.bottom,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Attendance Correction',
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: date,
-              decoration: const InputDecoration(
-                labelText: 'Date',
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Row(
+        child: SingleChildScrollView(
+          child: StatefulBuilder(
+            builder: (sheetContext, setSheetState) => Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: clockIn,
-                    decoration: const InputDecoration(
-                      labelText: 'Requested clock-in',
-                    ),
-                  ),
+              const Text(
+                'Attendance Correction',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
                 ),
-
-                const SizedBox(width: 8),
-
-                Expanded(
-                  child: TextField(
-                    controller: clockOut,
-                    decoration: const InputDecoration(
-                      labelText: 'Requested clock-out',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            TextField(
-              controller: reason,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Reason',
               ),
-            ),
 
-            const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-            PrimaryButton(
-              label: 'Submit Correction',
-              icon: Icons.send,
-              onPressed: () async {
-                if (date.text.trim().isEmpty ||
-                    reason.text.trim().isEmpty) {
-                  _showMessage(
-                    'Please enter date and reason.',
-                  );
-                  return;
-                }
+                TextField(
+                  controller: date,
+                  decoration: const InputDecoration(
+                    labelText: 'Date',
+                    hintText: 'YYYY-MM-DD',
+                  ),
+                  onChanged: (value) async {
+                    final parsed = _tryParseDate(value.trim());
+                    if (parsed == null) return;
 
-                /*
-                 * We will connect this to
-                 * AttendanceCorrectionRequest
-                 * once its exact model fields are confirmed.
-                 */
+                    final record =
+                    await _attendanceService.getAttendanceForDate(parsed);
 
-                Navigator.pop(sheet);
+                    setSheetState(() {
+                      selectedRecord = record;
+                    });
 
-                _showMessage(
-                  'Please connect AttendanceCorrectionRequest here.',
-                );
-              },
-            ),
-          ],
-        ),
+                    clockIn.text = record?.clockIn ?? '';
+                    clockOut.text = record?.clockOut ?? '';
+                  },
+                ),
+
+              const SizedBox(height: 10),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: clockIn,
+                      decoration: const InputDecoration(
+                        labelText: 'Requested clock-in',
+                        hintText: '09:00',
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  Expanded(
+                    child: TextField(
+                      controller: clockOut,
+                      decoration: const InputDecoration(
+                        labelText: 'Requested clock-out',
+                        hintText: '18:00',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: reason,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Reason',
+                  hintText: 'Explain why the attendance needs correction',
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              PrimaryButton(
+                label: 'Submit Correction',
+                icon: Icons.send,
+                onPressed: () async {
+                  final dateValue = date.text.trim();
+                  final clockInValue = clockIn.text.trim();
+                  final clockOutValue = clockOut.text.trim();
+                  final reasonValue = reason.text.trim();
+
+                  if (dateValue.isEmpty) {
+                    _showMessage('Please enter the attendance date.');
+                    return;
+                  }
+
+                  if (clockInValue.isEmpty && clockOutValue.isEmpty) {
+                    _showMessage(
+                      'Please enter the requested clock-in or clock-out time.',
+                    );
+                    return;
+                  }
+
+                  if (reasonValue.isEmpty) {
+                    _showMessage('Please enter a reason.');
+                    return;
+                  }
+
+                  try {
+                    final request = AttendanceCorrectionRequest(
+                      id: '',
+                      date: dateValue,
+                      existingClockIn: selectedRecord?.clockIn,
+                      existingClockOut: selectedRecord?.clockOut,
+                      requestedClockIn: clockInValue,
+                      requestedClockOut: clockOutValue,
+                      reason: reasonValue,
+                      status: CorrectionRequestStatus.pending,
+                      createdAt: DateTime.now().toIso8601String(),
+                    );
+
+                    await _attendanceService.submitCorrection(request);
+
+                    if (!mounted) return;
+
+                    Navigator.pop(sheet);
+
+                    _showMessage(
+                      'Attendance correction submitted successfully.',
+                    );
+
+                    await _loadTodayAttendance();
+                    await _loadAttendanceHistory();
+                  } catch (e) {
+                    if (!mounted) return;
+
+                    _showMessage(
+                      e.toString().replaceFirst('Bad state: ', ''),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+        ),),
       ),
     );
   }
@@ -766,6 +910,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return '${date.year.toString().padLeft(4, '0')}-'
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  DateTime? _tryParseDate(String value) {
+    final parts = value.split('-');
+    if (parts.length != 3) return null;
+
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+
+    if (year == null || month == null || day == null) return null;
+
+    return DateTime(year, month, day);
   }
 
   void _showMessage(String message) {

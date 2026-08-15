@@ -2,7 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
+import '../services/user_service.dart';
+import '../models/user_model.dart';
 import '../theme/app_theme.dart';
+import 'app_shell.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -15,18 +19,51 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(milliseconds: 1100), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => LoginScreen(onThemeToggle: widget.onThemeToggle),
-          ),
-        );
-      }
-    });
+    Timer(const Duration(milliseconds: 1100), _routeNext);
+  }
+
+  Future<void> _routeNext() async {
+    // Firebase Auth persists the session between app launches. Without this
+    // check, every restart forces a fresh login even for an already
+    // signed-in user.
+    if (!_authService.isSignedIn) {
+      _goTo(LoginScreen(onThemeToggle: widget.onThemeToggle));
+      return;
+    }
+
+    UserModel? profile;
+    try {
+      profile = await _userService.getCurrentUser();
+    } catch (_) {
+      profile = null;
+    }
+
+    if (!mounted) return;
+
+    if (profile == null) {
+      // Signed in with Firebase Auth but no matching Firestore profile
+      // (e.g. account was deleted server-side) — fall back to login.
+      _goTo(LoginScreen(onThemeToggle: widget.onThemeToggle));
+      return;
+    }
+
+    _goTo(AppShell(
+      onThemeToggle: widget.onThemeToggle,
+      initialManager: profile.role == UserRole.manager,
+    ));
+  }
+
+  void _goTo(Widget page) {
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => page),
+    );
   }
 
   @override

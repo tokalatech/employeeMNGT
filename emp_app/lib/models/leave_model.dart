@@ -18,6 +18,7 @@ class LeaveBalance {
   final int used;
   final int remaining;
   final String color;
+  final String? managerId;
 
   LeaveBalance({
     required this.type,
@@ -25,6 +26,7 @@ class LeaveBalance {
     required this.used,
     required this.remaining,
     required this.color,
+    required this.managerId
   });
 
   factory LeaveBalance.fromMap(Map<String, dynamic> map) {
@@ -34,6 +36,7 @@ class LeaveBalance {
       used: map['used'] ?? 0,
       remaining: map['remaining'] ?? 0,
       color: map['color'] ?? '',
+      managerId: map['managerId'],
     );
   }
 
@@ -44,6 +47,7 @@ class LeaveBalance {
       'used': used,
       'remaining': remaining,
       'color': color,
+      'managerId': managerId,
     };
   }
 }
@@ -65,6 +69,7 @@ class LeaveRequest {
   final String? reviewedBy;
   final String? reviewedAt;
   final String? rejectionReason;
+  final String? managerId;
 
   LeaveRequest({
     required this.id,
@@ -83,6 +88,7 @@ class LeaveRequest {
     this.reviewedBy,
     this.reviewedAt,
     this.rejectionReason,
+    required this.managerId
   });
 
   factory LeaveRequest.fromMap(Map<String, dynamic> map) {
@@ -103,6 +109,7 @@ class LeaveRequest {
       reviewedBy: map['reviewedBy'],
       reviewedAt: map['reviewedAt'],
       rejectionReason: map['rejectionReason'],
+        managerId:map['managerId'],
     );
   }
 
@@ -124,6 +131,7 @@ class LeaveRequest {
       'reviewedBy': reviewedBy,
       'reviewedAt': reviewedAt,
       'rejectionReason': rejectionReason,
+      'managerId':managerId,
     };
   }
 }

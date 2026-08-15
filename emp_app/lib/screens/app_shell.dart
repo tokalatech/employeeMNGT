@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import 'announcements_screen.dart';
 import 'attendance_screen.dart';
@@ -9,7 +10,6 @@ import 'helpdesk_screen.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
 import 'leave_screen.dart';
-import 'leave_approvals_screen.dart';
 import 'notifications_screen.dart';
 import 'payslips_screen.dart';
 import 'performance_screen.dart';
@@ -32,12 +32,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   var _tab = 0;
   late bool _manager;
-  var _working = false;
-  DateTime? _clockedIn;
-  final _leaves = <LeaveItem>[
-    const LeaveItem(type: 'Paid Leave', dates: 'Aug 25 – Aug 28, 2026', days: 4, status: 'Pending', reason: 'Family vacation'),
-    const LeaveItem(type: 'Sick Leave', dates: 'Jul 14 – Jul 15, 2026', days: 2, status: 'Approved', reason: 'Medical rest'),
-  ];
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -45,19 +40,21 @@ class _AppShellState extends State<AppShell> {
     _manager = widget.initialManager;
   }
 
-  void _clock() => setState(() {
-        _working = !_working;
-        _clockedIn = _working ? DateTime.now() : null;
-      });
 
   void _open(String title, Widget page) => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text(title)), body: page)),
-      );
+    MaterialPageRoute(builder: (_) => Scaffold(appBar: AppBar(title: Text(title)), body: page)),
+  );
 
-  void _signOut() => Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => LoginScreen(onThemeToggle: widget.onThemeToggle)),
-        (_) => false,
-      );
+  Future<void> _signOut() async {
+    // Sign out of Firebase too — otherwise the session persists and the
+    // splash screen will route straight back into AppShell next launch.
+    await _authService.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginScreen(onThemeToggle: widget.onThemeToggle)),
+          (_) => false,
+    );
+  }
 
   void _openModule(String id) {
     const managerOnly = {'team', 'leaveApprovals', 'teamAttendance', 'teamPerformance'};
@@ -67,10 +64,13 @@ class _AppShellState extends State<AppShell> {
     }
     switch (id) {
       case 'attendance': _tab = 1; break;
-      case 'leave': _tab = 2; break;
+      case 'leave': _tab = _manager ? 3 : 2; break;
+    // Manager Leave tab already has an Approvals sub-tab listing the full
+    // pending queue with inline approve/reject — jump there instead of
+    // pushing LeaveApprovalsScreen, which now needs a specific leaveId.
+      case 'leaveApprovals': _tab = 3; break;
       case 'notifications': _tab = 3; break;
       case 'team': _open('My Team', const TeamScreen()); return;
-      case 'leaveApprovals': _open('Leave Approvals', const LeaveApprovalsScreen()); return;
       case 'teamAttendance': _open('Team Attendance', const TeamAttendanceScreen()); return;
       case 'teamPerformance': _open('Team Performance', const TeamPerfomanceScreen()); return;
       case 'payslips': _open('Payslips', const PayslipsScreen()); return;
@@ -91,21 +91,19 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final pages = _manager
         ? <Widget>[
-            HomeScreen(manager: true, working: _working, clockedIn: _clockedIn, onClock: _clock, onNavigate: _openModule, leaves: _leaves),
-            // AttendanceScreen(working: _working, clockedIn: _clockedIn, onClock: _clock),
-            AttendanceScreen(),
-            const TeamScreen(),
-            LeaveScreen(leaves: _leaves, onSubmit: (leave) => setState(() => _leaves.insert(0, leave)), manager: true),
-            _MoreMenu(onOpen: _openModule, manager: true, onSignOut: _signOut),
-          ]
+      HomeScreen(manager: true, onNavigate: _openModule),
+      AttendanceScreen(),
+      const TeamScreen(),
+      const LeaveScreen(manager: true),
+      _MoreMenu(onOpen: _openModule, manager: true, onSignOut: _signOut),
+    ]
         : <Widget>[
-            HomeScreen(manager: false, working: _working, clockedIn: _clockedIn, onClock: _clock, onNavigate: _openModule, leaves: _leaves),
-            // AttendanceScreen(working: _working, clockedIn: _clockedIn, onClock: _clock),
-            AttendanceScreen(),
-            LeaveScreen(leaves: _leaves, onSubmit: (leave) => setState(() => _leaves.insert(0, leave)), manager: false),
-            NotificationsScreen(onOpen: _openModule),
-            _MoreMenu(onOpen: _openModule, manager: false, onSignOut: _signOut),
-          ];
+      HomeScreen(manager: false, onNavigate: _openModule),
+      AttendanceScreen(),
+      const LeaveScreen(manager: false),
+      NotificationsScreen(onOpen: _openModule),
+      _MoreMenu(onOpen: _openModule, manager: false, onSignOut: _signOut),
+    ];
     final titles = _manager ? ['Pulse HRMS', 'Clock & Time Tracking', 'My Team', 'Leave Management', 'All Modules'] : ['Pulse HRMS', 'Clock & Time Tracking', 'Leave Management', 'Notifications', 'All Modules'];
     return Scaffold(
       appBar: AppBar(
@@ -144,8 +142,8 @@ class _MoreMenu extends StatelessWidget {
     final items = manager ? [...managerItems, ...employeeItems] : employeeItems;
     return ListView(padding: const EdgeInsets.all(16), children: [
       GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: items.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: .98, crossAxisSpacing: 12, mainAxisSpacing: 12),
-        itemBuilder: (context, index) { final item = items[index]; return Material(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(16), child: InkWell(borderRadius: BorderRadius.circular(16), onTap: () => onOpen(item.$3), child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [CircleAvatar(backgroundColor: AppColors.primary.withValues(alpha: .15), child: Icon(item.$2, color: AppColors.primary)), const Spacer(), Text(item.$1, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800))])))); }),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: .98, crossAxisSpacing: 12, mainAxisSpacing: 12),
+          itemBuilder: (context, index) { final item = items[index]; return Material(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(16), child: InkWell(borderRadius: BorderRadius.circular(16), onTap: () => onOpen(item.$3), child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [CircleAvatar(backgroundColor: AppColors.primary.withValues(alpha: .15), child: Icon(item.$2, color: AppColors.primary)), const Spacer(), Text(item.$1, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800))])))); }),
       const SizedBox(height: 18),
       OutlinedButton.icon(onPressed: onSignOut, icon: const Icon(Icons.logout, color: AppColors.danger), label: const Text('Sign Out Account', style: TextStyle(color: AppColors.danger))),
     ]);

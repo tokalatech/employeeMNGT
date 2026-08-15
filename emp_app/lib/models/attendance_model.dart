@@ -1,12 +1,12 @@
-enum AttendanceStatus {
-  notCheckedIn,
-  working,
-  completed,
-  late,
-  halfDay,
-  absent,
-  onLeave,
-}
+// enum AttendanceStatus {
+//   notCheckedIn,
+//   working,
+//   completed,
+//   late,
+//   halfDay,
+//   absent,
+//   onLeave,
+// }
 
 enum AttendanceRecordStatus {
   present,

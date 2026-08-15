@@ -161,11 +161,23 @@ class _LoginScreenState extends State<LoginScreen> {
       // --------------------------------------------------
       // 5. Open AppShell
       // --------------------------------------------------
+      // Always resolve the manager flag from the account's actual Firestore
+      // role rather than the sign-up form's local toggle — otherwise every
+      // normal login (not just sign-up) would show the employee view even
+      // for manager accounts.
+      bool isManager = _signup && _manager;
+      if (!_signup) {
+        final profile = await _userService.getCurrentUser();
+        isManager = profile?.role == UserRole.manager;
+      }
+
+      if (!mounted) return;
+
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => AppShell(
             onThemeToggle: widget.onThemeToggle,
-            initialManager: _signup && _manager,
+            initialManager: isManager,
           ),
         ),
             (_) => false,
@@ -326,7 +338,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               onPressed: () => setState(
-                                () => _showPassword = !_showPassword,
+                                    () => _showPassword = !_showPassword,
                               ),
                               icon: Icon(
                                 _showPassword
@@ -345,19 +357,19 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefixIcon: Icon(Icons.apartment_outlined),
                             ),
                             items:
-                                const [
-                                      'Engineering',
-                                      'Product & Design',
-                                      'Human Resources',
-                                      'Finance',
-                                    ]
-                                    .map(
-                                      (item) => DropdownMenuItem(
-                                        value: item,
-                                        child: Text(item),
-                                      ),
-                                    )
-                                    .toList(),
+                            const [
+                              'Engineering',
+                              'Product & Design',
+                              'Human Resources',
+                              'Finance',
+                            ]
+                                .map(
+                                  (item) => DropdownMenuItem(
+                                value: item,
+                                child: Text(item),
+                              ),
+                            )
+                                .toList(),
                             onChanged: (value) {
                               if (value != null) {
                                 setState(() {
@@ -444,8 +456,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           label: _loading
                               ? 'Please wait...'
                               : (_signup
-                                    ? 'Create Account'
-                                    : 'Sign In Securely'),
+                              ? 'Create Account'
+                              : 'Sign In Securely'),
                           onPressed: _loading ? null : _submit,
                           icon: _signup
                               ? Icons.person_add_alt_1
@@ -473,10 +485,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _field(
-    TextEditingController controller,
-    String label,
-    IconData icon,
-  ) => TextField(
+      TextEditingController controller,
+      String label,
+      IconData icon,
+      ) => TextField(
     controller: controller,
     decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
   );
@@ -494,7 +506,7 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             'Sign In',
             !_signup,
-            () => setState(() => _signup = false),
+                () => setState(() => _signup = false),
           ),
         ),
         Expanded(
@@ -502,7 +514,7 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             'Sign Up',
             _signup,
-            () => setState(() => _signup = true),
+                () => setState(() => _signup = true),
           ),
         ),
       ],
@@ -510,11 +522,11 @@ class _LoginScreenState extends State<LoginScreen> {
   );
 
   Widget _modeButton(
-    BuildContext context,
-    String text,
-    bool active,
-    VoidCallback onTap,
-  ) => TextButton(
+      BuildContext context,
+      String text,
+      bool active,
+      VoidCallback onTap,
+      ) => TextButton(
     onPressed: onTap,
     style: TextButton.styleFrom(
       backgroundColor: active ? Theme.of(context).colorScheme.surface : null,
