@@ -13,9 +13,6 @@ enum ScreenId {
   attendance,
   leave,
   managerLeaveApprovals,
-  myTeam,
-  teamAttendance,
-  teamPerformance,
   payslips,
   performance,
   helpdesk,
@@ -137,12 +134,6 @@ ScreenId? screenIdFromString(String? value) {
       return ScreenId.leave;
     case 'manager_leave_approvals':
       return ScreenId.managerLeaveApprovals;
-    case 'my_team':
-      return ScreenId.myTeam;
-    case 'team_attendance':
-      return ScreenId.teamAttendance;
-    case 'team_performance':
-      return ScreenId.teamPerformance;
     case 'payslips':
       return ScreenId.payslips;
     case 'performance':
@@ -184,12 +175,6 @@ String screenIdToString(ScreenId value) {
       return 'leave';
     case ScreenId.managerLeaveApprovals:
       return 'manager_leave_approvals';
-    case ScreenId.myTeam:
-      return 'my_team';
-    case ScreenId.teamAttendance:
-      return 'team_attendance';
-    case ScreenId.teamPerformance:
-      return 'team_performance';
     case ScreenId.payslips:
       return 'payslips';
     case ScreenId.performance:

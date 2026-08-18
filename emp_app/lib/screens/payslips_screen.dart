@@ -149,8 +149,7 @@ class PayslipsScreen extends StatelessWidget {
   }
 
   static String _formatAmount(double amount) {
-    return '\${amount.toStringAsFixed(2)}';
-  }
+    return '₹${amount.toStringAsFixed(2)}';  }
 }
 
 class _LatestPayslipCard extends StatelessWidget {
@@ -232,7 +231,7 @@ class _PayslipHistoryCard extends StatelessWidget {
         ),
 
         subtitle: Text(
-          'Net salary: \${payslip.netSalary.toStringAsFixed(2)}',
+          'Net salary: ₹${payslip.netSalary.toStringAsFixed(2)}',
           style: const TextStyle(
             fontSize: 11,
           ),

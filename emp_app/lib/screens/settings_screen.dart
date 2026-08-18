@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pulse_card.dart';
+import '../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.onThemeToggle});
@@ -12,14 +13,60 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool push = true, email = true, biometric = false;
-  String frame = 'Android', state = 'Online';
+  bool push = true;
+  bool email = true;
+  bool biometric = false;
+
+  String language = 'English';
+
+  String frame = 'Android';
+  String state = 'Online';
+
+  bool isLoading = true;
+
+  final SettingsService _settingsService = SettingsService();
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final settings = await _settingsService.getSettings();
+
+      if (!mounted) return;
+
+      setState(() {
+        push = settings['pushNotifications'] ?? true;
+        email = settings['emailNotifications'] ?? true;
+        biometric = settings['biometricSignIn'] ?? false;
+        language = settings['language'] ?? 'English';
+
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      _message('Unable to load settings');
+    }
+  }
 
   void _message(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   @override
-  Widget build(BuildContext context) => ListView(
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+      return ListView(
     padding: const EdgeInsets.all(16),
     children: [
       _heading('NOTIFICATIONS'),
@@ -29,7 +76,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: push,
-              onChanged: (v) => setState(() => push = v),
+              onChanged: (v) async {
+                setState(() => push = v);
+
+                try {
+                  await _settingsService.updateSetting(
+                    'pushNotifications',
+                    v,
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+
+                  setState(() => push = !v);
+                  _message('Failed to update push notifications');
+                }
+              },
               title: const Text('Push Notifications'),
               subtitle: const Text(
                 'Alerts from PulseHR',
@@ -39,7 +100,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: email,
-              onChanged: (v) => setState(() => email = v),
+              onChanged: (v) async {
+                setState(() => email = v);
+
+                try {
+                  await _settingsService.updateSetting(
+                    'emailNotifications',
+                    v,
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+
+                  setState(() => email = !v);
+                  _message('Failed to update email notifications');
+                }
+              },
               title: const Text('Email Notifications'),
               subtitle: const Text(
                 'Updates to your work email',
@@ -77,7 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: AppColors.primary,
               ),
               title: const Text('Language'),
-              subtitle: const Text('English', style: TextStyle(fontSize: 11)),
+              subtitle: Text(language, style: TextStyle(fontSize: 11)),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _message(
                 'Language selection will be available with localization.',
@@ -138,7 +213,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: SwitchListTile(
           contentPadding: EdgeInsets.zero,
           value: biometric,
-          onChanged: (v) => setState(() => biometric = v),
+          onChanged: (v) async {
+            setState(() => biometric = v);
+
+            try {
+              await _settingsService.updateSetting(
+                'biometricSignIn',
+                v,
+              );
+            } catch (e) {
+              if (!mounted) return;
+
+              setState(() => biometric = !v);
+              _message('Failed to update biometric sign-in');
+            }
+          },
           title: const Text('Biometric Sign-in'),
           subtitle: const Text(
             'Use fingerprint or face unlock',
@@ -155,7 +244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: const Icon(Icons.code, color: AppColors.primary),
               title: const Text('Flutter Implementation Notes'),
               subtitle: const Text(
-                'Frontend-only mock data and local state',
+                'Firebase-backed employee settings',
                 style: TextStyle(fontSize: 11),
               ),
               onTap: _showSpec,
@@ -170,7 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     ],
-  );
+  );}
 
   Widget _heading(String value) => Padding(
     padding: const EdgeInsets.only(top: 16, bottom: 7),
@@ -199,7 +288,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SizedBox(height: 12),
           Text(
-            'All UI uses local mock data and state. Replace module repositories with API services in the next phase; screen contracts and user flows remain unchanged.',
+            'Employee settings are loaded from Firebase and saved to the signed-in user account.',
             style: TextStyle(fontSize: 13),
           ),
           SizedBox(height: 12),

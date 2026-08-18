@@ -13,7 +13,6 @@ class LoginScreen extends StatefulWidget {
 
   final VoidCallback onThemeToggle;
 
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -28,17 +27,47 @@ class _LoginScreenState extends State<LoginScreen> {
   final _password = TextEditingController();
   final _name = TextEditingController();
   final _confirm = TextEditingController();
+  final _phone = TextEditingController();
+  final _dob = TextEditingController();
+  final _address = TextEditingController();
 
   final AuthService _authService = AuthService();
   final UserService _userService = UserService();
   String _department = 'Engineering';
+
+  Future<T> _completeWithin<T>(Future<T> operation, String timeoutMessage) {
+    return operation.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () => throw StateError(timeoutMessage),
+    );
+  }
+
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
     _name.dispose();
     _confirm.dispose();
+    _phone.dispose();
+    _dob.dispose();
+    _address.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDateOfBirth() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000),
+      firstDate: DateTime(1950),
+      lastDate: DateTime.now(),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _dob.text =
+            '${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}';
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -46,6 +75,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _password.text;
     final name = _name.text.trim();
     final confirmPassword = _confirm.text;
+    final phone = _phone.text.trim();
+    final dob = _dob.text.trim();
+    final address = _address.text.trim();
 
     // Common validation
     if (email.isEmpty || password.isEmpty) {
@@ -91,6 +123,24 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         return;
       }
+      if (phone.isEmpty) {
+        setState(() {
+          _error = 'Please enter your phone number.';
+        });
+        return;
+      }
+      if (dob.isEmpty) {
+        setState(() {
+          _error = 'Please select your date of birth.';
+        });
+        return;
+      }
+      if (address.isEmpty) {
+        setState(() {
+          _error = 'Please enter your address.';
+        });
+        return;
+      }
     }
 
     setState(() {
@@ -103,10 +153,12 @@ class _LoginScreenState extends State<LoginScreen> {
         // --------------------------------------------------
         // 1. Create Firebase Authentication account
         // --------------------------------------------------
-        final credential =
-        await _authService.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
+        final credential = await _completeWithin(
+          _authService.createUserWithEmailAndPassword(
+            email: email,
+            password: password,
+          ),
+          'Account creation timed out. Please check your internet connection.',
         );
 
         final firebaseUser = credential.user;
@@ -118,7 +170,10 @@ class _LoginScreenState extends State<LoginScreen> {
         // --------------------------------------------------
         // 2. Update Firebase Auth display name
         // --------------------------------------------------
-        await firebaseUser.updateDisplayName(name);
+        await _completeWithin(
+          firebaseUser.updateDisplayName(name),
+          'Account was created, but updating the profile timed out.',
+        );
 
         // --------------------------------------------------
         // 3. Create UserModel for Firestore
@@ -127,32 +182,35 @@ class _LoginScreenState extends State<LoginScreen> {
           id: firebaseUser.uid,
           name: name,
           email: email,
+          phone: phone,
+          dob: dob,
+          address: address,
           avatar: '',
           designation: _manager ? 'Manager' : 'Employee',
           department: _department,
-          employeeId:
-          'EMP-${firebaseUser.uid.substring(0, 6).toUpperCase()}',
-          role: _manager
-              ? UserRole.manager
-              : UserRole.employee,
-          joiningDate: DateTime.now()
-              .toIso8601String()
-              .split('T')
-              .first,
+          employeeId: 'EMP-${firebaseUser.uid.substring(0, 6).toUpperCase()}',
+          role: _manager ? UserRole.manager : UserRole.employee,
+          joiningDate: DateTime.now().toIso8601String().split('T').first,
           employmentType: 'Full-time',
         );
 
         // --------------------------------------------------
         // 4. Save UserModel into Firestore
         // --------------------------------------------------
-        await _userService.createOrUpdateUser(user);
+        await _completeWithin(
+          _userService.createOrUpdateUser(user),
+          'Account was created, but saving the employee profile timed out.',
+        );
       } else {
         // --------------------------------------------------
         // Login
         // --------------------------------------------------
-        await _authService.signInWithEmailAndPassword(
-          email: email,
-          password: password,
+        await _completeWithin(
+          _authService.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          ),
+          'Sign in timed out. Please check your internet connection.',
         );
       }
 
@@ -167,8 +225,16 @@ class _LoginScreenState extends State<LoginScreen> {
       // for manager accounts.
       bool isManager = _signup && _manager;
       if (!_signup) {
-        final profile = await _userService.getCurrentUser();
-        isManager = profile?.role == UserRole.manager;
+        final profile = await _completeWithin(
+          _userService.getCurrentUser(),
+          'Sign in succeeded, but loading your employee profile timed out.',
+        );
+        if (profile == null) {
+          throw StateError(
+            'Your account does not have an employee profile. Please contact an administrator.',
+          );
+        }
+        isManager = profile.role == UserRole.manager;
       }
 
       if (!mounted) return;
@@ -180,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
             initialManager: isManager,
           ),
         ),
-            (_) => false,
+        (_) => false,
       );
     } on FirebaseAuthException catch (e) {
       String message;
@@ -227,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = e.toString().replaceFirst('Bad state: ', '');
         });
       }
     } finally {
@@ -256,9 +322,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Password reset link has been sent to your email.',
-          ),
+          content: Text('Password reset link has been sent to your email.'),
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -269,7 +333,6 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -308,7 +371,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     _signup
                         ? 'Register your employee profile to get instant access to PulseHR'
-                        : 'Sign in to access your attendance, leaves, payslips & team dashboard',
+                        : 'Sign in to access your attendance, leaves, and payslips',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
@@ -321,6 +384,26 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         if (_signup) ...[
                           _field(_name, 'Full Name', Icons.person_outline),
+                          const SizedBox(height: 12),
+                          _field(_phone, 'Phone Number', Icons.phone_outlined),
+                          const SizedBox(height: 12),
+
+                          TextField(
+                            controller: _dob,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Date of Birth',
+                              prefixIcon: Icon(Icons.calendar_today_outlined),
+                            ),
+                            onTap: _selectDateOfBirth,
+                          ),
+                          const SizedBox(height: 12),
+
+                          _field(
+                            _address,
+                            'Address',
+                            Icons.location_on_outlined,
+                          ),
                           const SizedBox(height: 12),
                         ],
                         _field(
@@ -338,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               onPressed: () => setState(
-                                    () => _showPassword = !_showPassword,
+                                () => _showPassword = !_showPassword,
                               ),
                               icon: Icon(
                                 _showPassword
@@ -357,19 +440,19 @@ class _LoginScreenState extends State<LoginScreen> {
                               prefixIcon: Icon(Icons.apartment_outlined),
                             ),
                             items:
-                            const [
-                              'Engineering',
-                              'Product & Design',
-                              'Human Resources',
-                              'Finance',
-                            ]
-                                .map(
-                                  (item) => DropdownMenuItem(
-                                value: item,
-                                child: Text(item),
-                              ),
-                            )
-                                .toList(),
+                                const [
+                                      'Engineering',
+                                      'Product & Design',
+                                      'Human Resources',
+                                      'Finance',
+                                    ]
+                                    .map(
+                                      (item) => DropdownMenuItem(
+                                        value: item,
+                                        child: Text(item),
+                                      ),
+                                    )
+                                    .toList(),
                             onChanged: (value) {
                               if (value != null) {
                                 setState(() {
@@ -391,8 +474,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                             selected: {_manager},
-                            onSelectionChanged: (value) =>
-                                setState(() => _manager = value.first),
+                            onSelectionChanged: _loading
+                                ? null
+                                : (value) =>
+                                      setState(() => _manager = value.first),
                           ),
                           const SizedBox(height: 12),
                           TextField(
@@ -456,8 +541,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           label: _loading
                               ? 'Please wait...'
                               : (_signup
-                              ? 'Create Account'
-                              : 'Sign In Securely'),
+                                    ? 'Create Account'
+                                    : 'Sign In Securely'),
                           onPressed: _loading ? null : _submit,
                           icon: _signup
                               ? Icons.person_add_alt_1
@@ -485,10 +570,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _field(
-      TextEditingController controller,
-      String label,
-      IconData icon,
-      ) => TextField(
+    TextEditingController controller,
+    String label,
+    IconData icon,
+  ) => TextField(
     controller: controller,
     decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
   );
@@ -506,7 +591,7 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             'Sign In',
             !_signup,
-                () => setState(() => _signup = false),
+            () => setState(() => _signup = false),
           ),
         ),
         Expanded(
@@ -514,7 +599,7 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             'Sign Up',
             _signup,
-                () => setState(() => _signup = true),
+            () => setState(() => _signup = true),
           ),
         ),
       ],
@@ -522,12 +607,12 @@ class _LoginScreenState extends State<LoginScreen> {
   );
 
   Widget _modeButton(
-      BuildContext context,
-      String text,
-      bool active,
-      VoidCallback onTap,
-      ) => TextButton(
-    onPressed: onTap,
+    BuildContext context,
+    String text,
+    bool active,
+    VoidCallback onTap,
+  ) => TextButton(
+    onPressed: _loading ? null : onTap,
     style: TextButton.styleFrom(
       backgroundColor: active ? Theme.of(context).colorScheme.surface : null,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

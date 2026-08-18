@@ -18,7 +18,19 @@ class LeaveScreen extends StatefulWidget {
 class _LeaveScreenState extends State<LeaveScreen> {
   final _leaveService = LeaveService();
   final _userService = UserService();
-  String _tab = 'Balances';
+  late String _tab;
+  late final Stream<List<LeaveBalance>> _balancesStream;
+  late final Stream<List<LeaveRequest>> _leavesStream;
+  late final Stream<List<LeaveRequest>> _approvalsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = 'Balances';
+    _balancesStream = _leaveService.watchMyLeaveBalances();
+    _leavesStream = _leaveService.watchMyLeaves();
+    _approvalsStream = _leaveService.watchPendingApprovals();
+  }
 
   @override
   Widget build(BuildContext context) => ListView(
@@ -64,37 +76,38 @@ class _LeaveScreenState extends State<LeaveScreen> {
       borderRadius: BorderRadius.circular(16),
     ),
     child: Row(
-      children:
-      (widget.manager
-          ? ['Balances', 'History', 'Approvals']
-          : ['Balances', 'History'])
+      children: ['Balances', 'History', if (widget.manager) 'Approvals']
           .map(
             (x) => Expanded(
-          child: TextButton(
-            onPressed: () => setState(() => _tab = x),
-            style: TextButton.styleFrom(
-              backgroundColor: _tab == x
-                  ? Theme.of(context).colorScheme.surface
-                  : null,
-            ),
-            child: Text(
-              x,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: _tab == x ? AppColors.primary : null,
+              child: TextButton(
+                onPressed: () => setState(() => _tab = x),
+                style: TextButton.styleFrom(
+                  backgroundColor: _tab == x
+                      ? Theme.of(context).colorScheme.surface
+                      : null,
+                ),
+                child: Text(
+                  x,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: _tab == x ? AppColors.primary : null,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      )
+          )
           .toList(),
     ),
   );
 
   Widget _balances() => StreamBuilder<List<LeaveBalance>>(
-    stream: _leaveService.watchMyLeaveBalances(),
+    key: const ValueKey('balances_stream'),
+    stream: _balancesStream,
     builder: (context, snap) {
+      if (snap.hasError) {
+        return _loadError('leave balances', snap.error);
+      }
       if (snap.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -132,7 +145,10 @@ class _LeaveScreenState extends State<LeaveScreen> {
             leaveTypeToString(b.type),
             style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
           ),
-          Text('${b.remaining} days left', style: const TextStyle(fontSize: 10)),
+          Text(
+            '${b.remaining} days left',
+            style: const TextStyle(fontSize: 10),
+          ),
           const SizedBox(height: 7),
           LinearProgressIndicator(
             value: b.total == 0 ? 0 : b.remaining / b.total,
@@ -156,8 +172,12 @@ class _LeaveScreenState extends State<LeaveScreen> {
   }
 
   Widget _history() => StreamBuilder<List<LeaveRequest>>(
-    stream: _leaveService.watchMyLeaves(),
+    key: const ValueKey('history_stream'),
+    stream: _leavesStream,
     builder: (context, snap) {
+      if (snap.hasError) {
+        return _loadError('leave history', snap.error);
+      }
       if (snap.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -207,8 +227,12 @@ class _LeaveScreenState extends State<LeaveScreen> {
   );
 
   Widget _approvals() => StreamBuilder<List<LeaveRequest>>(
-    stream: _leaveService.watchPendingApprovals(),
+    key: const ValueKey('approvals_stream'),
+    stream: _approvalsStream,
     builder: (context, snap) {
+      if (snap.hasError) {
+        return _loadError('leave approvals', snap.error);
+      }
       if (snap.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -221,6 +245,13 @@ class _LeaveScreenState extends State<LeaveScreen> {
       }
       return Column(children: pending.map(_approval).toList());
     },
+  );
+
+  Widget _loadError(String section, Object? error) => PulseCard(
+    child: Text(
+      'Unable to load $section. ${error ?? 'Please try again.'}',
+      style: const TextStyle(fontSize: 12),
+    ),
   );
 
   Widget _approval(LeaveRequest item) => Padding(
@@ -279,13 +310,15 @@ class _LeaveScreenState extends State<LeaveScreen> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Leave request ${approved ? 'approved' : 'rejected'}')),
+        SnackBar(
+          content: Text('Leave request ${approved ? 'approved' : 'rejected'}'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to review request: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to review request: $e')));
     }
   }
 
@@ -304,7 +337,9 @@ class _LeaveScreenState extends State<LeaveScreen> {
           ),
           const SizedBox(height: 10),
           Text('${item.startDate} – ${item.endDate}'),
-          Text('${item.totalDays} days · ${leaveRequestStatusToString(item.status)}'),
+          Text(
+            '${item.totalDays} days · ${leaveRequestStatusToString(item.status)}',
+          ),
           const SizedBox(height: 8),
           Text(item.reason),
           if (item.attachmentName != null)
@@ -364,14 +399,14 @@ class _LeaveScreenState extends State<LeaveScreen> {
               DropdownButtonFormField<String>(
                 initialValue: type,
                 items:
-                const [
-                  'Paid Leave',
-                  'Casual Leave',
-                  'Sick Leave',
-                  'Maternity/Paternity',
-                ]
-                    .map((x) => DropdownMenuItem(value: x, child: Text(x)))
-                    .toList(),
+                    const [
+                          'Paid Leave',
+                          'Casual Leave',
+                          'Sick Leave',
+                          'Maternity/Paternity',
+                        ]
+                        .map((x) => DropdownMenuItem(value: x, child: Text(x)))
+                        .toList(),
                 onChanged: (x) => setSheet(() => type = x!),
               ),
               const SizedBox(height: 10),
@@ -412,44 +447,52 @@ class _LeaveScreenState extends State<LeaveScreen> {
                 onPressed: range == null || reason.text.trim().isEmpty
                     ? null
                     : () async {
-                  final r = range!;
-                  try {
-                    final UserModel? profile = await _userService.getCurrentUser();
-                    if (profile == null) {
-                      if (!sheet.mounted) return;
-                      ScaffoldMessenger.of(sheet).showSnackBar(
-                        const SnackBar(content: Text('Could not load your profile. Please try again.')),
-                      );
-                      return;
-                    }
-                    await _leaveService.applyLeave(
-                      LeaveRequest(
-                        id: '',
-                        employeeId: '', // filled server-side by LeaveService from _uid
-                        managerId: profile.managerId ?? '',
-                        employeeName: profile.name,
-                        employeeAvatar: profile.avatar,
-                        department: profile.department,
-                        leaveType: leaveTypeFromString(type),
-                        startDate: r.start.toIso8601String(),
-                        endDate: r.end.toIso8601String(),
-                        totalDays: r.duration.inDays + 1,
-                        reason: reason.text.trim(),
-                        attachmentName:
-                        attachment ? 'supporting_document.pdf' : null,
-                        status: LeaveRequestStatus.pending,
-                        appliedDate: '',
-                      ),
-                    );
-                    if (sheet.mounted) Navigator.pop(sheet);
-                  } catch (e) {
-                    print('applyLeave failed: $e');
-                    if (!sheet.mounted) return;
-                    ScaffoldMessenger.of(sheet).showSnackBar(
-                      SnackBar(content: Text('Failed to submit request: $e')),
-                    );
-                  }
-                },
+                        final r = range!;
+                        try {
+                          final UserModel? profile = await _userService
+                              .getCurrentUser();
+                          if (profile == null) {
+                            if (!sheet.mounted) return;
+                            ScaffoldMessenger.of(sheet).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Could not load your profile. Please try again.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          await _leaveService.applyLeave(
+                            LeaveRequest(
+                              id: '',
+                              employeeId:
+                                  '', // filled server-side by LeaveService from _uid
+                              employeeName: profile.name,
+                              employeeAvatar: profile.avatar,
+                              department: profile.department,
+                              leaveType: leaveTypeFromString(type),
+                              startDate: r.start.toIso8601String(),
+                              endDate: r.end.toIso8601String(),
+                              totalDays: r.duration.inDays + 1,
+                              reason: reason.text.trim(),
+                              attachmentName: attachment
+                                  ? 'supporting_document.pdf'
+                                  : null,
+                              status: LeaveRequestStatus.pending,
+                              appliedDate: '',
+                            ),
+                          );
+                          if (sheet.mounted) Navigator.pop(sheet);
+                        } catch (e) {
+                          print('applyLeave failed: $e');
+                          if (!sheet.mounted) return;
+                          ScaffoldMessenger.of(sheet).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to submit request: $e'),
+                            ),
+                          );
+                        }
+                      },
               ),
             ],
           ),

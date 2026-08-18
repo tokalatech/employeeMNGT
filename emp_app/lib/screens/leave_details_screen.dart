@@ -3,19 +3,34 @@ import 'flow_detail_screen.dart';
 import '../models/leave_model.dart';
 import '../services/leave_service.dart';
 
-class LeaveDetailsScreen extends StatelessWidget {
+class LeaveDetailsScreen extends StatefulWidget {
   const LeaveDetailsScreen({super.key, required this.leaveId});
 
   final String leaveId;
 
   @override
+  State<LeaveDetailsScreen> createState() => _LeaveDetailsScreenState();
+}
+
+class _LeaveDetailsScreenState extends State<LeaveDetailsScreen> {
+  final LeaveService _leaveService = LeaveService();
+  late final Stream<List<LeaveRequest>> _leavesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _leavesStream = _leaveService.watchMyLeaves();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final leaveService = LeaveService();
     return StreamBuilder<List<LeaveRequest>>(
-      stream: leaveService.watchMyLeaves(),
+      stream: _leavesStream,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (snap.hasError) {
           return Scaffold(body: Center(child: Text('Error: ${snap.error}')));
@@ -23,13 +38,15 @@ class LeaveDetailsScreen extends StatelessWidget {
         final leaves = snap.data ?? const [];
         LeaveRequest? leave;
         for (final l in leaves) {
-          if (l.id == leaveId) {
+          if (l.id == widget.leaveId) {
             leave = l;
             break;
           }
         }
         if (leave == null) {
-          return const Scaffold(body: Center(child: Text('Leave request not found.')));
+          return const Scaffold(
+            body: Center(child: Text('Leave request not found.')),
+          );
         }
 
         final match = leave; // promoted non-null local
@@ -38,32 +55,39 @@ class LeaveDetailsScreen extends StatelessWidget {
         return FlowDetailScreen(
           title: 'Leave Request Details',
           subtitle:
-          '${leaveTypeToString(match.leaveType)} · ${leaveRequestStatusToString(match.status)}',
-          action: isPending ? 'Cancel request' : leaveRequestStatusToString(match.status),
+              '${leaveTypeToString(match.leaveType)} · ${leaveRequestStatusToString(match.status)}',
+          action: isPending
+              ? 'Cancel request'
+              : leaveRequestStatusToString(match.status),
           actionEnabled: isPending,
           sections: [
-            ('Dates', '${match.startDate} – ${match.endDate} · ${match.totalDays} days'),
+            (
+              'Dates',
+              '${match.startDate} – ${match.endDate} · ${match.totalDays} days',
+            ),
             ('Reason', match.reason),
             ('Approval status', _approvalStatusText(match)),
           ],
           onAction: isPending
               ? () async {
-            try {
-              await leaveService.cancelLeave(match.id);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Leave request cancelled.')),
-                );
-                Navigator.pop(context);
-              }
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to cancel request: $e')),
-                );
-              }
-            }
-          }
+                  try {
+                    await _leaveService.cancelLeave(match.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Leave request cancelled.'),
+                        ),
+                      );
+                      Navigator.pop(context);
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to cancel request: $e')),
+                      );
+                    }
+                  }
+                }
               : null,
         );
       },
