@@ -68,6 +68,90 @@ class AttendanceRecord {
   }
 }
 
+enum BreakType {
+  teaBreak,
+  lunchBreak,
+  afternoonTeaBreak,
+}
+
+class AttendanceBreak {
+  final String id;
+  final String employeeId;
+  final String? managerId;
+  final String attendanceId;
+  final String date;
+  final BreakType type;
+  final String? breakStart;
+  final String? breakEnd;
+  final String? duration;
+  final bool isActive;
+
+  AttendanceBreak({
+    required this.id,
+    required this.employeeId,
+    this.managerId,
+    required this.attendanceId,
+    required this.date,
+    required this.type,
+    this.breakStart,
+    this.breakEnd,
+    this.duration,
+    required this.isActive,
+  });
+
+  factory AttendanceBreak.fromMap(Map<String, dynamic> map) {
+    return AttendanceBreak(
+      id: map['id'] ?? '',
+      employeeId: map['employeeId'] ?? '',
+      managerId: map['managerId'],
+      attendanceId: map['attendanceId'] ?? '',
+      date: map['date'] ?? '',
+      type: breakTypeFromString(map['breakType']),
+      breakStart: map['breakStart'],
+      breakEnd: map['breakEnd'],
+      duration: map['duration'],
+      isActive: map['isActive'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'employeeId': employeeId,
+      'managerId': managerId,
+      'attendanceId': attendanceId,
+      'date': date,
+      'breakType': breakTypeToString(type),
+      'breakStart': breakStart,
+      'breakEnd': breakEnd,
+      'duration': duration,
+      'isActive': isActive,
+    };
+  }
+}
+
+BreakType breakTypeFromString(String? value) {
+  switch (value) {
+    case 'Lunch Break':
+      return BreakType.lunchBreak;
+    case 'Afternoon Tea Break':
+      return BreakType.afternoonTeaBreak;
+    default:
+      return BreakType.teaBreak;
+  }
+}
+
+String breakTypeToString(BreakType value) {
+  switch (value) {
+    case BreakType.teaBreak:
+      return 'Tea Break';
+    case BreakType.lunchBreak:
+      return 'Lunch Break';
+    case BreakType.afternoonTeaBreak:
+      return 'Afternoon Tea Break';
+  }
+}
+
 class AttendanceCorrectionRequest {
   final String id;
   final String date;
