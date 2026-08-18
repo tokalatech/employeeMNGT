@@ -7,6 +7,13 @@ import 'pages_dev1/performance_page.dart';
 import 'pages_dev1/analytics_page.dart';
 import 'pages_dev1/calendar_page.dart';
 import 'pages_dev1/settings_page.dart';
+import 'pages_dev2/leave_management_page.dart';
+import 'pages_dev2/announcements_page.dart';
+import 'pages_dev2/audit_logs_page.dart';
+import 'pages_dev2/departments_page.dart';
+import 'pages_dev2/documents_page.dart';
+import 'pages_dev2/self_service_page.dart';
+import 'pages_dev2/helpdesk_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -22,17 +29,17 @@ class _MainScaffoldState extends State<MainScaffold> {
     const DashboardPage(),                          // Index 0
     const EmployeesPage(),                          // Index 1
     const AttendancePage(),                         // Index 2
-    const Dev2Placeholder(title: 'Leave Management'),// Index 3
+    const LeaveManagementPage(),// Index 3
     const PayrollPage(),                            // Index 4
     const PerformancePage(),                        // Index 5
-    const Dev2Placeholder(title: 'Support Helpdesk'),// Index 6
+    const HelpdeskPage(),// Index 6
     const CalendarPage(),                           // Index 7
-    const Dev2Placeholder(title: 'Self-Service Requests'), // Index 8
-    const Dev2Placeholder(title: 'Departments'),   // Index 9
-    const Dev2Placeholder(title: 'Announcements'), // Index 10
-    const Dev2Placeholder(title: 'Document Center'),// Index 11
+    const SelfServicePage(), // Index 8
+    const DepartmentsPage(),   // Index 9
+    const AnnouncementsPage(), // Index 10
+    const DocumentsPage(),// Index 11
     const AnalyticsPage(),                          // Index 12
-    const Dev2Placeholder(title: 'Audit Logs'),    // Index 13
+    const AuditLogsPage(),    // Index 13
     const SettingsPage(),                           // Index 14
   ];
 
