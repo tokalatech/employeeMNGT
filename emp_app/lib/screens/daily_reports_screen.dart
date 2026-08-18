@@ -36,33 +36,44 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
     super.dispose();
   }
 
+  // ------------------------------------------------------------
+  // FILE SELECTION
+  // Compatible with file_picker 12.0.0
+  // ------------------------------------------------------------
   Future<void> _selectFile() async {
     if (_uploading) return;
 
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final files = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const [
           'pdf',
           'doc',
           'docx',
         ],
-        withData: true,
       );
 
-      if (result == null) return;
+      if (files.isEmpty) {
+        return;
+      }
 
-      final file = result.files.single;
+      final file = files.first;
 
-      if (file.bytes == null || file.bytes!.isEmpty) {
-        throw StateError('Unable to read the selected file.');
+      // file_picker 12.0.0 does not expose file.bytes.
+      // Read the selected file using readAsBytes().
+      final bytes = await file.readAsBytes();
+
+      if (bytes.isEmpty) {
+        throw StateError(
+          'Unable to read the selected file.',
+        );
       }
 
       if (!mounted) return;
 
       setState(() {
         _selectedFileName = file.name;
-        _selectedFileBytes = file.bytes;
+        _selectedFileBytes = bytes;
         _selectedFileType = _getFileType(file.name);
       });
     } catch (e) {
@@ -77,13 +88,18 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
     return extension;
   }
 
+  // ------------------------------------------------------------
+  // UPLOAD REPORT
+  // ------------------------------------------------------------
   Future<void> _uploadReport() async {
     if (_uploading) return;
 
     if (_selectedFileBytes == null ||
         _selectedFileName == null ||
         _selectedFileType == null) {
-      _showMessage('Please select a report document.');
+      _showMessage(
+        'Please select a report document.',
+      );
       return;
     }
 
@@ -94,7 +110,8 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
 
     try {
       setState(() {
-        _uploadStatus = 'Uploading file to Firebase Storage...';
+        _uploadStatus =
+        'Uploading file to Firebase Storage...';
       });
 
       await _reportService.uploadDailyReport(
@@ -103,7 +120,8 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
         fileType: _selectedFileType!,
         fileSize: _selectedFileBytes!.length,
         reportDate: _reportDate,
-        description: _descriptionController.text.trim().isEmpty
+        description:
+        _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
       );
@@ -138,6 +156,9 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
     }
   }
 
+  // ------------------------------------------------------------
+  // DATE SELECTION
+  // ------------------------------------------------------------
   Future<void> _selectDate() async {
     if (_uploading) return;
 
@@ -161,6 +182,9 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
         '${date.year}';
   }
 
+  // ------------------------------------------------------------
+  // MESSAGES
+  // ------------------------------------------------------------
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -174,8 +198,15 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
   void _showError(Object error) {
     var message = error.toString();
 
-    message = message.replaceFirst('Bad state: ', '');
-    message = message.replaceFirst('Exception: ', '');
+    message = message.replaceFirst(
+      'Bad state: ',
+      '',
+    );
+
+    message = message.replaceFirst(
+      'Exception: ',
+      '',
+    );
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -187,6 +218,9 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
       );
   }
 
+  // ------------------------------------------------------------
+  // BUILD
+  // ------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -217,6 +251,9 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // SUBMISSION CARD
+  // ------------------------------------------------------------
   Widget _submissionCard() {
     return PulseCard(
       child: Column(
@@ -366,7 +403,8 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
             enabled: !_uploading,
             decoration: const InputDecoration(
               labelText: 'Description (optional)',
-              hintText: 'Briefly describe today\'s work...',
+              hintText:
+              'Briefly describe today\'s work...',
               border: OutlineInputBorder(),
             ),
           ),
@@ -390,7 +428,8 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _uploading ? null : _uploadReport,
+              onPressed:
+              _uploading ? null : _uploadReport,
               icon: _uploading
                   ? const SizedBox(
                 width: 17,
@@ -412,6 +451,9 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // SUBMITTED REPORTS
+  // ------------------------------------------------------------
   Widget _submittedReports() {
     return StreamBuilder<List<DailyReport>>(
       stream: _reportService.watchMyReports(),
@@ -419,13 +461,17 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
         if (snapshot.hasError) {
           return PulseCard(
             child: Text(
-              'Unable to load submitted reports: ${snapshot.error}',
-              style: const TextStyle(fontSize: 12),
+              'Unable to load submitted reports: '
+                  '${snapshot.error}',
+              style: const TextStyle(
+                fontSize: 12,
+              ),
             ),
           );
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
           return const PulseCard(
             child: Center(
               child: Padding(
@@ -442,7 +488,9 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
           return const PulseCard(
             child: Text(
               'No daily reports submitted yet.',
-              style: TextStyle(fontSize: 12),
+              style: TextStyle(
+                fontSize: 12,
+              ),
             ),
           );
         }
@@ -454,6 +502,9 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
     );
   }
 
+  // ------------------------------------------------------------
+  // REPORT CARD
+  // ------------------------------------------------------------
   Widget _reportCard(DailyReport report) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
@@ -474,8 +525,11 @@ class _DailyReportsScreenState extends State<DailyReportsScreen> {
             ),
           ),
           subtitle: Text(
-            '${report.reportDate} · ${_statusText(report.status)}',
-            style: const TextStyle(fontSize: 10),
+            '${report.reportDate} · '
+                '${_statusText(report.status)}',
+            style: const TextStyle(
+              fontSize: 10,
+            ),
           ),
         ),
       ),

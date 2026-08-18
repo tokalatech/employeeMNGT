@@ -1,4 +1,4 @@
-package com.example.emp_app
+package com.yuvi.emp_mngt
 
 import io.flutter.embedding.android.FlutterActivity
 

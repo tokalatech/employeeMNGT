@@ -169,7 +169,7 @@ class _AppShellState extends State<AppShell> {
       case 'helpdesk':
         _open(
           'Helpdesk & Support',
-          const HelpdeskScreen(),
+          HelpdeskScreen(),
         );
         return;
 
