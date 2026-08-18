@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../models/helpdesk_model.dart';
 import '../services/helpdesk_service.dart';
+import 'ticket_details_screen.dart';
 
-class TicketDetailsScreen extends StatelessWidget {
-  const TicketDetailsScreen({
-    super.key,
-    required this.ticketId,
-  });
-
-  final String ticketId;
+class HelpdeskScreen extends StatelessWidget {
+  const HelpdeskScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final helpdeskService = HelpdeskService();
+    final service = HelpdeskService();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ticket Details'),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          _showCreateTicketDialog(context, service);
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('New Ticket'),
       ),
-      body: FutureBuilder<HelpdeskTicket?>(
-        future: helpdeskService.getTicketById(ticketId),
+      body: StreamBuilder<List<HelpdeskTicket>>(
+        stream: service.watchMyTickets(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -33,422 +33,401 @@ class TicketDetailsScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  'Failed to load ticket\n\n${snapshot.error}',
+                  'Failed to load tickets\n\n${snapshot.error}',
                   textAlign: TextAlign.center,
                 ),
               ),
             );
           }
 
-          final ticket = snapshot.data;
+          final tickets = snapshot.data ?? <HelpdeskTicket>[];
 
-          if (ticket == null) {
+          if (tickets.isEmpty) {
             return const Center(
-              child: Text(
-                'Ticket not found',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.support_agent_outlined,
+                      size: 64,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'No support tickets',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Create a ticket if you need help from HR or support.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             );
           }
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Ticket number
-              Text(
-                ticket.ticketNumber,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey,
-                ),
-              ),
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              100,
+            ),
+            itemCount: tickets.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final ticket = tickets[index];
 
-              const SizedBox(height: 6),
-
-              // Real subject
-              Text(
-                ticket.subject,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Status / Priority / Category
-              _InfoCard(
-                title: 'Status',
-                value: helpdeskStatusToString(ticket.status),
-              ),
-
-              _InfoCard(
-                title: 'Priority',
-                value: helpdeskPriorityToString(ticket.priority),
-              ),
-
-              _InfoCard(
-                title: 'Category',
-                value: helpdeskCategoryToString(ticket.category),
-              ),
-
-              _InfoCard(
-                title: 'Created',
-                value: ticket.createdAt,
-              ),
-
-              // Description
-              const SizedBox(height: 10),
-
-              const Text(
-                'Description',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    ticket.description.isEmpty
-                        ? 'No description provided.'
-                        : ticket.description,
-                    style: const TextStyle(
-                      fontSize: 14,
+              return _TicketCard(
+                ticket: ticket,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TicketDetailsScreen(
+                        ticketId: ticket.id,
+                      ),
                     ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              const Text(
-                'Conversation',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Real Firebase messages
-              StreamBuilder<List<HelpdeskMessage>>(
-                stream: helpdeskService.watchMessages(ticket.id),
-                builder: (context, messageSnapshot) {
-                  if (messageSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  if (messageSnapshot.hasError) {
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'Failed to load messages\n'
-                              '${messageSnapshot.error}',
-                        ),
-                      ),
-                    );
-                  }
-
-                  final messages =
-                      messageSnapshot.data ?? <HelpdeskMessage>[];
-
-                  if (messages.isEmpty) {
-                    return const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text(
-                          'No messages yet.',
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Column(
-                    children: messages
-                        .map(
-                          (message) => _MessageCard(
-                        message: message,
-                      ),
-                    )
-                        .toList(),
                   );
                 },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Reply button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    _showReplyDialog(
-                      context,
-                      ticket,
-                      helpdeskService,
-                    );
-                  },
-                  icon: const Icon(Icons.reply),
-                  label: const Text('Send Reply'),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Status update
-              if (ticket.status != HelpdeskStatus.resolved)
-                OutlinedButton.icon(
-                  onPressed: () async {
-                    await helpdeskService.updateTicketStatus(
-                      ticket.id,
-                      HelpdeskStatus.resolved,
-                    );
-
-                    if (!context.mounted) return;
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Ticket marked as resolved',
-                        ),
-                      ),
-                    );
-
-                    Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Mark as Resolved'),
-                ),
-            ],
+              );
+            },
           );
         },
       ),
     );
   }
 
-  Future<void> _showReplyDialog(
+  Future<void> _showCreateTicketDialog(
       BuildContext context,
-      HelpdeskTicket ticket,
       HelpdeskService service,
       ) async {
-    final controller = TextEditingController();
+    final subjectController = TextEditingController();
+    final descriptionController = TextEditingController();
+
+    HelpdeskCategory category = HelpdeskCategory.itSupport;
+    HelpdeskPriority priority = HelpdeskPriority.medium;
 
     await showDialog(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Send Reply'),
-          content: TextField(
-            controller: controller,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: 'Enter your reply',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final text = controller.text.trim();
-
-                if (text.isEmpty) {
-                  return;
-                }
-
-                final message = HelpdeskMessage(
-                  id: '',
-                  senderName: 'You',
-                  senderAvatar: '',
-                  isStaff: false,
-                  text: text,
-                  timestamp: DateTime.now().toIso8601String(),
-                );
-
-                try {
-                  await service.addMessage(
-                    ticket.id,
-                    message,
-                  );
-
-                  if (!dialogContext.mounted) return;
-
-                  Navigator.pop(dialogContext);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Reply sent successfully',
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Create Support Ticket'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: subjectController,
+                      decoration: const InputDecoration(
+                        labelText: 'Subject',
+                        hintText: 'Enter ticket subject',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                  );
-                } catch (e) {
-                  if (!dialogContext.mounted) return;
-
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Failed to send reply: $e',
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<HelpdeskCategory>(
+                      value: category,
+                      decoration: const InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: HelpdeskCategory.values.map((item) {
+                        return DropdownMenuItem(
+                          value: item,
+                          child: Text(
+                            helpdeskCategoryToString(item),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            category = value;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<HelpdeskPriority>(
+                      value: priority,
+                      decoration: const InputDecoration(
+                        labelText: 'Priority',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: HelpdeskPriority.values.map((item) {
+                        return DropdownMenuItem(
+                          value: item,
+                          child: Text(
+                            helpdeskPriorityToString(item),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            priority = value;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        hintText: 'Describe your issue',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                  );
-                }
-              },
-              child: const Text('Send'),
-            ),
-          ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final subject = subjectController.text.trim();
+                    final description =
+                    descriptionController.text.trim();
+
+                    if (subject.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please enter a subject.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (description.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please enter a description.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final ticket = HelpdeskTicket(
+                      id: '',
+                      ticketNumber: '',
+                      subject: subject,
+                      category: category,
+                      priority: priority,
+                      status: HelpdeskStatus.open,
+                      createdAt: DateTime.now().toIso8601String(),
+                      description: description,
+                      messages: const [],
+                    );
+
+                    try {
+                      await service.createTicket(ticket);
+
+                      if (!dialogContext.mounted) return;
+
+                      Navigator.pop(dialogContext);
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Support ticket created successfully.',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      if (!dialogContext.mounted) return;
+
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Failed to create ticket: $e',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Create'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
 
-    controller.dispose();
+    subjectController.dispose();
+    descriptionController.dispose();
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.title,
-    required this.value,
+class _TicketCard extends StatelessWidget {
+  const _TicketCard({
+    required this.ticket,
+    required this.onTap,
   });
 
-  final String title;
-  final String value;
+  final HelpdeskTicket ticket;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                title,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      ticket.ticketNumber,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                  _StatusChip(
+                    status: ticket.status,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ticket.subject,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                ticket.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey,
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                value,
-                textAlign: TextAlign.end,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  _SmallInfo(
+                    icon: Icons.category_outlined,
+                    text: helpdeskCategoryToString(
+                      ticket.category,
+                    ),
+                  ),
+                  const Spacer(),
+                  _SmallInfo(
+                    icon: Icons.flag_outlined,
+                    text: helpdeskPriorityToString(
+                      ticket.priority,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _MessageCard extends StatelessWidget {
-  const _MessageCard({
-    required this.message,
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.status,
   });
 
-  final HelpdeskMessage message;
+  final HelpdeskStatus status;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  child: Text(
-                    message.senderName.isEmpty
-                        ? '?'
-                        : message.senderName[0].toUpperCase(),
-                  ),
-                ),
-
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        message.senderName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-
-                      const SizedBox(height: 2),
-
-                      Text(
-                        message.isStaff
-                            ? 'Support Staff'
-                            : 'Employee',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Text(
-                  message.timestamp,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              message.text,
-              style: const TextStyle(
-                fontSize: 14,
-              ),
-            ),
-          ],
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: _statusColor.withValues(alpha: .12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        helpdeskStatusToString(status),
+        style: TextStyle(
+          color: _statusColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
         ),
       ),
+    );
+  }
+
+  Color get _statusColor {
+    switch (status) {
+      case HelpdeskStatus.open:
+        return Colors.orange;
+      case HelpdeskStatus.inProgress:
+        return Colors.blue;
+      case HelpdeskStatus.resolved:
+        return Colors.green;
+    }
+  }
+}
+
+class _SmallInfo extends StatelessWidget {
+  const _SmallInfo({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 15,
+          color: Colors.grey,
+        ),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }
