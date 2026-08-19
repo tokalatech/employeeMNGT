@@ -144,7 +144,7 @@ class _AppShellState extends State<AppShell> {
       case 'dailyReports':
         _open(
           'Daily Reports',
-          const DailyReportsScreen(),
+          DailyReportsScreen(),
         );
         return;
 
