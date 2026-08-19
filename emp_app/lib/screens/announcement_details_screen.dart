@@ -4,7 +4,7 @@ class AnnouncementDetailsScreen extends FlowDetailScreen {
   AnnouncementDetailsScreen({super.key,required Announcement announcement,})
     : super(
     title: announcement.title,
-    subtitle: 
+    subtitle:
     '${announcementCategoryToString(announcement.category)} · ${announcement.publishedDate}',
     sections: [
       (
