@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import 'announcements_screen.dart';
 import 'attendance_screen.dart';
 import 'calendar_screen.dart';
-import 'daily_reports_screen.dart';
+import 'hourly_reports_screen.dart';
 import 'documents_screen.dart';
 import 'helpdesk_screen.dart';
 import 'login_screen.dart';
@@ -132,22 +132,21 @@ class _AppShellState extends State<AppShell> {
         return;
 
 // ----------------------------------------------------------
-// DAILY REPORTS
+// HOURLY REPORTS
 //
 // HomeScreen sends:
 //
-// widget.onNavigate('dailyReports')
+// widget.onNavigate('hourlyReports')
 //
-// This must open DailyReportsScreen directly.
+// This opens HourlyReportsScreen directly.
 // ----------------------------------------------------------
 
-      case 'dailyReports':
+      case 'hourlyReports':
         _open(
-          'Daily Reports',
-          DailyReportsScreen(),
+          'Hourly Reports',
+          const HourlyReportsScreen(),
         );
         return;
-
 // ----------------------------------------------------------
 // EMPLOYEE MODULES
 // ----------------------------------------------------------
@@ -262,13 +261,9 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          titles[_tab],
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+        title: _tab == 0
+            ? Image.asset('assets/images/logo.jpg', height: 50, fit: BoxFit.contain)
+            : Text(titles[_tab], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(

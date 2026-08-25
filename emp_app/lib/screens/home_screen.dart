@@ -16,6 +16,7 @@ import '../models/calendar_event_model.dart';
 import '../services/calendar_service.dart';
 
 
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
@@ -370,9 +371,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   IconButton(
                     onPressed: () {
-                      widget.onNavigate('dailyReports');
+                      widget.onNavigate('hourlyReports');
                     },
-                    tooltip: 'Daily Reports',
+                    tooltip: 'Hourly Reports',
                     icon: const Icon(
                       Icons.assignment_outlined,
                     ),
