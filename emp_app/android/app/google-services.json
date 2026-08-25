@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "946744576413",
-    "project_id": "tokala-emp-management2",
-    "storage_bucket": "tokala-emp-management2.firebasestorage.app"
+    "project_number": "354339062381",
+    "project_id": "yuvi-employee-management",
+    "storage_bucket": "yuvi-employee-management.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:946744576413:android:c5498d2540698c7baf0774",
+        "mobilesdk_app_id": "1:354339062381:android:3bd9ae2718b9c1093fb564",
         "android_client_info": {
           "package_name": "com.example.emp_app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD6s_8QLx-aM8LoX5Afg0_Cki--vZ0B8O4"
+          "current_key": "AIzaSyAbQX5vnE6-oxBDZ80Vo_LSjLAXbLCL5Z8"
         }
       ],
       "services": {
@@ -26,7 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:946744576413:android:d004e67014f87c7faf0774",
+        "mobilesdk_app_id": "1:354339062381:android:f436b8ff5590c6f23fb564",
         "android_client_info": {
           "package_name": "com.yuvi.emp_mngt"
         }
@@ -34,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD6s_8QLx-aM8LoX5Afg0_Cki--vZ0B8O4"
+          "current_key": "AIzaSyAbQX5vnE6-oxBDZ80Vo_LSjLAXbLCL5Z8"
         }
       ],
       "services": {

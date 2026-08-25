@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDPSmfBjFWygzIlN-dcs5X_UmA7EAhhZZk',
-    appId: '1:946744576413:web:05dc4d2457b0e5dcaf0774',
-    messagingSenderId: '946744576413',
-    projectId: 'tokala-emp-management2',
-    authDomain: 'tokala-emp-management2.firebaseapp.com',
-    storageBucket: 'tokala-emp-management2.firebasestorage.app',
+    apiKey: 'AIzaSyDdzx6nIIlTJYTE825ppEasFkMPirRb4ec',
+    appId: '1:354339062381:web:cc51258e57bf9d533fb564',
+    messagingSenderId: '354339062381',
+    projectId: 'yuvi-employee-management',
+    authDomain: 'yuvi-employee-management.firebaseapp.com',
+    storageBucket: 'yuvi-employee-management.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyD6s_8QLx-aM8LoX5Afg0_Cki--vZ0B8O4',
-    appId: '1:946744576413:android:c5498d2540698c7baf0774',
-    messagingSenderId: '946744576413',
-    projectId: 'tokala-emp-management2',
-    storageBucket: 'tokala-emp-management2.firebasestorage.app',
+    apiKey: 'AIzaSyAbQX5vnE6-oxBDZ80Vo_LSjLAXbLCL5Z8',
+    appId: '1:354339062381:android:f436b8ff5590c6f23fb564',
+    messagingSenderId: '354339062381',
+    projectId: 'yuvi-employee-management',
+    storageBucket: 'yuvi-employee-management.firebasestorage.app',
   );
 }

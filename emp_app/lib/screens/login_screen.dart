@@ -346,18 +346,11 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 18),
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(17),
-                    ),
-                    child: const Icon(
-                      Icons.shield_outlined,
-                      color: Colors.white,
-                      size: 29,
-                    ),
+                  Image.asset(
+                    'assets/images/logo.jpg',
+                    width: 250,
+                    height: 250,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 12),
                   Text(
