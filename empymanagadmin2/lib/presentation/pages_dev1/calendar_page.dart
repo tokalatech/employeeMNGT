@@ -17,7 +17,10 @@ class _CalendarPageState extends State<CalendarPage> {
     'EVENT',
   ];
 
-  // August 2026 events shown in the screenshot.
+  // ============================================================
+  // AUGUST 2026 EVENTS
+  // ============================================================
+
   final Map<int, List<CalendarEvent>> events = {
     5: [
       CalendarEvent(
@@ -26,6 +29,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.leave,
       ),
     ],
+
     6: [
       CalendarEvent(
         icon: '🤒',
@@ -33,6 +37,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.leave,
       ),
     ],
+
     10: [
       CalendarEvent(
         icon: '🌈',
@@ -45,6 +50,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.event,
       ),
     ],
+
     11: [
       CalendarEvent(
         icon: '🌈',
@@ -52,6 +58,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.leave,
       ),
     ],
+
     12: [
       CalendarEvent(
         icon: '🌈',
@@ -59,6 +66,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.leave,
       ),
     ],
+
     13: [
       CalendarEvent(
         icon: '🌈',
@@ -66,6 +74,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.leave,
       ),
     ],
+
     14: [
       CalendarEvent(
         icon: '🌈',
@@ -73,6 +82,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.leave,
       ),
     ],
+
     15: [
       CalendarEvent(
         icon: '🇮🇳',
@@ -85,6 +95,7 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.holiday,
       ),
     ],
+
     22: [
       CalendarEvent(
         icon: '📢',
@@ -92,6 +103,8 @@ class _CalendarPageState extends State<CalendarPage> {
         type: EventType.event,
       ),
     ],
+
+    // August 31
     31: [
       CalendarEvent(
         icon: '👜',
@@ -105,6 +118,7 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
+
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -116,15 +130,28 @@ class _CalendarPageState extends State<CalendarPage> {
                   constraints: const BoxConstraints(
                     maxWidth: 1370,
                   ),
+
                   child: Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: isMobile ? 12 : 7,
                     ),
+
                     child: Column(
                       children: [
+                        // ==================================================
+                        // HEADER
+                        // ==================================================
+
                         _buildHeader(isMobile),
+
                         const SizedBox(height: 27),
+
+                        // ==================================================
+                        // CALENDAR
+                        // ==================================================
+
                         _buildCalendarContainer(isMobile),
+
                         const SizedBox(height: 30),
                       ],
                     ),
@@ -145,10 +172,12 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget _buildHeader(bool isMobile) {
     return Container(
       width: double.infinity,
+
       padding: EdgeInsets.symmetric(
         horizontal: isMobile ? 20 : 27,
         vertical: isMobile ? 22 : 27,
       ),
+
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
@@ -159,21 +188,29 @@ class _CalendarPageState extends State<CalendarPage> {
             Color(0xFF11182F),
           ],
         ),
+
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(17),
           bottomRight: Radius.circular(17),
         ),
       ),
+
       child: isMobile
           ? Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeaderBadge(),
+
           const SizedBox(height: 14),
+
           _buildHeaderTitle(),
+
           const SizedBox(height: 6),
+
           _buildHeaderDescription(),
+
           const SizedBox(height: 18),
+
           _buildFilterButtons(true),
         ],
       )
@@ -185,7 +222,9 @@ class _CalendarPageState extends State<CalendarPage> {
               CrossAxisAlignment.start,
               children: [
                 _buildHeaderBadge(),
+
                 const SizedBox(height: 13),
+
                 const Text(
                   'August 2026',
                   style: TextStyle(
@@ -195,7 +234,9 @@ class _CalendarPageState extends State<CalendarPage> {
                     letterSpacing: -0.5,
                   ),
                 ),
+
                 const SizedBox(height: 6),
+
                 const Text(
                   'Centralized schedule tracking holidays, approved leaves, payroll processing deadlines, birthdays, and all-hands townhalls.',
                   style: TextStyle(
@@ -207,11 +248,16 @@ class _CalendarPageState extends State<CalendarPage> {
               ],
             ),
           ),
+
           _buildFilterButtons(false),
         ],
       ),
     );
   }
+
+  // ============================================================
+  // HEADER BADGE
+  // ============================================================
 
   Widget _buildHeaderBadge() {
     return Container(
@@ -219,6 +265,7 @@ class _CalendarPageState extends State<CalendarPage> {
         horizontal: 11,
         vertical: 5,
       ),
+
       decoration: BoxDecoration(
         color: const Color(0xFF00765F).withOpacity(.55),
         borderRadius: BorderRadius.circular(20),
@@ -226,6 +273,7 @@ class _CalendarPageState extends State<CalendarPage> {
           color: const Color(0xFF009B79),
         ),
       ),
+
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -234,7 +282,9 @@ class _CalendarPageState extends State<CalendarPage> {
             color: Color(0xFF52E4BA),
             size: 15,
           ),
+
           SizedBox(width: 7),
+
           Text(
             'Company Master Calendar',
             style: TextStyle(
@@ -248,6 +298,10 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
+  // ============================================================
+  // HEADER TITLE
+  // ============================================================
+
   Widget _buildHeaderTitle() {
     return const Text(
       'August 2026',
@@ -259,6 +313,10 @@ class _CalendarPageState extends State<CalendarPage> {
       ),
     );
   }
+
+  // ============================================================
+  // HEADER DESCRIPTION
+  // ============================================================
 
   Widget _buildHeaderDescription() {
     return const Text(
@@ -278,6 +336,7 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget _buildFilterButtons(bool isMobile) {
     return Container(
       padding: const EdgeInsets.all(5),
+
       decoration: BoxDecoration(
         color: const Color(0xFF273247),
         borderRadius: BorderRadius.circular(13),
@@ -285,34 +344,43 @@ class _CalendarPageState extends State<CalendarPage> {
           color: const Color(0xFF485469),
         ),
       ),
+
       child: Row(
         mainAxisSize:
         isMobile ? MainAxisSize.max : MainAxisSize.min,
+
         children: filters.map((filter) {
-          final bool selected = selectedFilter == filter;
+          final bool selected =
+              selectedFilter == filter;
 
           return Expanded(
             flex: isMobile ? 1 : 0,
+
             child: GestureDetector(
               onTap: () {
                 setState(() {
                   selectedFilter = filter;
                 });
               },
+
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 7,
                 ),
+
                 decoration: BoxDecoration(
                   color: selected
                       ? const Color(0xFF00AF79)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius:
+                  BorderRadius.circular(9),
                 ),
+
                 child: Text(
                   filter,
                   textAlign: TextAlign.center,
+
                   style: TextStyle(
                     color: selected
                         ? Colors.white
@@ -336,18 +404,22 @@ class _CalendarPageState extends State<CalendarPage> {
   Widget _buildCalendarContainer(bool isMobile) {
     return Container(
       width: double.infinity,
+
       padding: EdgeInsets.fromLTRB(
         isMobile ? 12 : 27,
         25,
         isMobile ? 12 : 27,
         27,
       ),
+
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
+
         border: Border.all(
           color: const Color(0xFFDCE3EB),
         ),
+
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(.06),
@@ -356,9 +428,11 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
         ],
       ),
+
       child: isMobile
           ? SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+
         child: SizedBox(
           width: 1080,
           child: _buildCalendar(),
@@ -385,15 +459,29 @@ class _CalendarPageState extends State<CalendarPage> {
 
     final List<int?> days = _buildAugustDays();
 
+    // IMPORTANT:
+    // Calculate the number of rows dynamically.
+    //
+    // August 2026:
+    // 6 empty cells + 31 days = 37 cells
+    // 37 / 7 = 6 rows
+    //
+    final int numberOfRows =
+    (days.length / 7).ceil();
+
     return Column(
       children: [
-        // Weekday names
+        // ========================================================
+        // WEEKDAY NAMES
+        // ========================================================
+
         Row(
           children: weekdays.map((day) {
             return Expanded(
               child: Center(
                 child: Text(
                   day,
+
                   style: const TextStyle(
                     color: Color(0xFF8294AD),
                     fontSize: 12,
@@ -407,46 +495,78 @@ class _CalendarPageState extends State<CalendarPage> {
 
         const SizedBox(height: 13),
 
-        // Calendar rows
-        ...List.generate(5, (rowIndex) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: rowIndex == 4 ? 0 : 10,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: List.generate(7, (columnIndex) {
-                final int index =
-                    rowIndex * 7 + columnIndex;
+        // ========================================================
+        // CALENDAR ROWS
+        // ========================================================
 
-                final int? day =
-                index < days.length ? days[index] : null;
+        ...List.generate(
+          numberOfRows,
+              (rowIndex) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom:
+                rowIndex == numberOfRows - 1
+                    ? 0
+                    : 10,
+              ),
 
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: columnIndex == 6 ? 0 : 8,
-                    ),
-                    child: _buildDayCell(day),
-                  ),
-                );
-              }),
-            ),
-          );
-        }),
+              child: Row(
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
+
+                children: List.generate(
+                  7,
+                      (columnIndex) {
+                    final int index =
+                        rowIndex * 7 +
+                            columnIndex;
+
+                    final int? day =
+                    index < days.length
+                        ? days[index]
+                        : null;
+
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right:
+                          columnIndex == 6
+                              ? 0
+                              : 8,
+                        ),
+
+                        child: _buildDayCell(day),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
 
   // ============================================================
-  // BUILD AUGUST 2026
+  // BUILD AUGUST 2026 DAYS
   // ============================================================
 
   List<int?> _buildAugustDays() {
     // August 1, 2026 is Saturday.
+    //
+    // Sunday → null
+    // Monday → null
+    // Tuesday → null
+    // Wednesday → null
+    // Thursday → null
+    // Friday → null
+    // Saturday → 1
+    //
+    // Therefore we need 6 empty cells before day 1.
+
     final List<int?> days = [];
 
-    // Empty cells before August 1.
     days.addAll([
       null,
       null,
@@ -456,7 +576,10 @@ class _CalendarPageState extends State<CalendarPage> {
       null,
     ]);
 
-    // August 1 - 31.
+    // ==========================================================
+    // AUGUST 1 - 31
+    // ==========================================================
+
     for (int day = 1; day <= 31; day++) {
       days.add(day);
     }
@@ -469,9 +592,11 @@ class _CalendarPageState extends State<CalendarPage> {
   // ============================================================
 
   Widget _buildDayCell(int? day) {
+    // Empty cell before August 1.
     if (day == null) {
       return Container(
         height: 113,
+
         decoration: BoxDecoration(
           color: const Color(0xFFFBFCFD),
           borderRadius: BorderRadius.circular(13),
@@ -479,6 +604,8 @@ class _CalendarPageState extends State<CalendarPage> {
       );
     }
 
+    // August 12 is today's highlighted date
+    // according to your screenshot.
     final bool isToday = day == 12;
 
     final List<CalendarEvent> visibleEvents =
@@ -486,23 +613,29 @@ class _CalendarPageState extends State<CalendarPage> {
 
     return Container(
       height: 113,
+
       padding: const EdgeInsets.fromLTRB(
         9,
         9,
         8,
         7,
       ),
+
       decoration: BoxDecoration(
         color: isToday
             ? const Color(0xFFF9FFFC)
             : Colors.white,
+
         borderRadius: BorderRadius.circular(13),
+
         border: Border.all(
           color: isToday
               ? const Color(0xFF00B886)
               : const Color(0xFFE5EBF1),
+
           width: isToday ? 1.5 : 1,
         ),
+
         boxShadow: isToday
             ? [
           BoxShadow(
@@ -513,25 +646,34 @@ class _CalendarPageState extends State<CalendarPage> {
         ]
             : null,
       ),
+
       child: Column(
         crossAxisAlignment:
         CrossAxisAlignment.start,
+
         children: [
-          // Day number
+          // ======================================================
+          // DAY NUMBER
+          // ======================================================
+
           Row(
             children: [
               if (isToday)
                 Container(
                   width: 33,
                   height: 29,
+
                   alignment: Alignment.center,
+
                   decoration: BoxDecoration(
                     color: const Color(0xFF00A875),
                     borderRadius:
                     BorderRadius.circular(13),
                   ),
+
                   child: const Text(
                     '12',
+
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -542,16 +684,20 @@ class _CalendarPageState extends State<CalendarPage> {
               else
                 Text(
                   '$day',
+
                   style: const TextStyle(
                     color: Color(0xFF173250),
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+
               if (isToday) ...[
                 const Spacer(),
+
                 const Text(
                   'TODAY',
+
                   style: TextStyle(
                     color: Color(0xFF009E76),
                     fontSize: 9,
@@ -564,12 +710,16 @@ class _CalendarPageState extends State<CalendarPage> {
 
           const SizedBox(height: 7),
 
-          // Events
+          // ======================================================
+          // EVENTS
+          // ======================================================
+
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment:
                 CrossAxisAlignment.stretch,
+
                 children: visibleEvents
                     .map(
                       (event) =>
@@ -585,11 +735,12 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   // ============================================================
-  // EVENTS
+  // GET VISIBLE EVENTS
   // ============================================================
 
   List<CalendarEvent> _getVisibleEvents(int day) {
-    final dayEvents = events[day] ?? [];
+    final List<CalendarEvent> dayEvents =
+        events[day] ?? [];
 
     if (selectedFilter == 'ALL') {
       return dayEvents;
@@ -598,14 +749,18 @@ class _CalendarPageState extends State<CalendarPage> {
     return dayEvents.where((event) {
       switch (selectedFilter) {
         case 'HOLIDAY':
-          return event.type == EventType.holiday;
+          return event.type ==
+              EventType.holiday;
 
         case 'LEAVE':
-          return event.type == EventType.leave;
+          return event.type ==
+              EventType.leave;
 
         case 'EVENT':
-          return event.type == EventType.event ||
-              event.type == EventType.payroll;
+          return event.type ==
+              EventType.event ||
+              event.type ==
+                  EventType.payroll;
 
         default:
           return true;
@@ -613,49 +768,68 @@ class _CalendarPageState extends State<CalendarPage> {
     }).toList();
   }
 
+  // ============================================================
+  // EVENT WIDGET
+  // ============================================================
+
   Widget _buildEvent(CalendarEvent event) {
     Color backgroundColor;
     Color textColor;
 
     switch (event.type) {
       case EventType.leave:
-        backgroundColor = const Color(0xFFDDE4FF);
-        textColor = const Color(0xFF3B48A7);
+        backgroundColor =
+        const Color(0xFFDDE4FF);
+        textColor =
+        const Color(0xFF3B48A7);
         break;
 
       case EventType.holiday:
-        backgroundColor = const Color(0xFFFFDFE3);
-        textColor = const Color(0xFFC93650);
+        backgroundColor =
+        const Color(0xFFFFDFE3);
+        textColor =
+        const Color(0xFFC93650);
         break;
 
       case EventType.event:
-        backgroundColor = const Color(0xFFC9F5DF);
-        textColor = const Color(0xFF087B58);
+        backgroundColor =
+        const Color(0xFFC9F5DF);
+        textColor =
+        const Color(0xFF087B58);
         break;
 
       case EventType.payroll:
-        backgroundColor = const Color(0xFFFFEFC4);
-        textColor = const Color(0xFFB86600);
+        backgroundColor =
+        const Color(0xFFFFEFC4);
+        textColor =
+        const Color(0xFFB86600);
         break;
     }
 
     return Container(
       width: double.infinity,
+
       margin: const EdgeInsets.only(
         bottom: 4,
       ),
+
       padding: const EdgeInsets.symmetric(
         horizontal: 7,
         vertical: 4,
       ),
+
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(4),
       ),
+
       child: Text(
         '${event.icon} ${event.title}',
+
         maxLines: 1,
+
         overflow: TextOverflow.ellipsis,
+
         style: TextStyle(
           color: textColor,
           fontSize: 9.5,
@@ -667,7 +841,7 @@ class _CalendarPageState extends State<CalendarPage> {
 }
 
 // ================================================================
-// EVENT MODEL
+// EVENT TYPE
 // ================================================================
 
 enum EventType {
@@ -676,6 +850,10 @@ enum EventType {
   event,
   payroll,
 }
+
+// ================================================================
+// CALENDAR EVENT MODEL
+// ================================================================
 
 class CalendarEvent {
   final String icon;

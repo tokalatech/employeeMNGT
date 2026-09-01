@@ -1,0 +1,86 @@
+{
+  "project_info": {
+    "project_number": "354339062381",
+    "project_id": "yuvi-employee-management",
+    "storage_bucket": "yuvi-employee-management.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354339062381:android:3bd9ae2718b9c1093fb564",
+        "android_client_info": {
+          "package_name": "com.example.emp_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbQX5vnE6-oxBDZ80Vo_LSjLAXbLCL5Z8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354339062381:android:f3a826858f6398a03fb564",
+        "android_client_info": {
+          "package_name": "com.example.empymanagadmin2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbQX5vnE6-oxBDZ80Vo_LSjLAXbLCL5Z8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354339062381:android:a1dac6ab3eb193773fb564",
+        "android_client_info": {
+          "package_name": "com.tokalatechnologies.emp_management"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbQX5vnE6-oxBDZ80Vo_LSjLAXbLCL5Z8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:354339062381:android:f436b8ff5590c6f23fb564",
+        "android_client_info": {
+          "package_name": "com.yuvi.emp_mngt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbQX5vnE6-oxBDZ80Vo_LSjLAXbLCL5Z8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

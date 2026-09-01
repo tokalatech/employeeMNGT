@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class EmployeesPage extends StatefulWidget {
@@ -16,121 +17,35 @@ class _EmployeesPageState extends State<EmployeesPage> {
 
   bool isListView = true;
 
-  final List<Employee> employees = [
-    Employee(
-      name: 'Sarah Jenkins',
-      designation: 'VP of Human Resources',
-      code: 'EMP-1001',
-      department: 'Executive & HR',
-      role: 'ADMIN',
-      email: 'sarah.jenkins@nexus.com',
-      phone: '+1 (555) 234-5678',
-      employmentType: 'FULL TIME',
-      status: 'ACTIVE',
-      initials: 'SJ',
-      avatarColor: Color(0xFFE7A36C),
-    ),
-    Employee(
-      name: 'David Vance',
-      designation: 'Engineering Director',
-      code: 'EMP-1002',
-      department: 'Engineering & Tech',
-      role: 'MANAGER',
-      email: 'david.vance@nexus.com',
-      phone: '+1 (555) 345-6789',
-      employmentType: 'FULL TIME',
-      status: 'ACTIVE',
-      initials: 'DV',
-      avatarColor: Color(0xFFB8C7D9),
-    ),
-    Employee(
-      name: 'Alex Rivera',
-      designation: 'Senior Frontend Engineer',
-      code: 'EMP-1003',
-      department: 'Engineering & Tech',
-      role: 'EMPLOYEE',
-      email: 'alex.rivera@nexus.com',
-      phone: '+1 (555) 456-7890',
-      employmentType: 'FULL TIME',
-      status: 'ACTIVE',
-      initials: 'AR',
-      avatarColor: Color(0xFF556DDC),
-    ),
-    Employee(
-      name: 'Emily Chen',
-      designation: 'Lead Product Designer',
-      code: 'EMP-1004',
-      department: 'Product & Design',
-      role: 'EMPLOYEE',
-      email: 'emily.chen@nexus.com',
-      phone: '+1 (555) 567-8901',
-      employmentType: 'FULL TIME',
-      status: 'ACTIVE',
-      initials: 'EC',
-      avatarColor: Color(0xFFF2D8D0),
-    ),
-    Employee(
-      name: 'Marcus Sterling',
-      designation: 'Head of Growth Marketing',
-      code: 'EMP-1005',
-      department: 'Marketing & Sales',
-      role: 'MANAGER',
-      email: 'marcus.sterling@nexus.com',
-      phone: '+1 (555) 678-9012',
-      employmentType: 'FULL TIME',
-      status: 'ACTIVE',
-      initials: 'MS',
-      avatarColor: Color(0xFF9B6540),
-    ),
-    Employee(
-      name: 'Priya Patel',
-      designation: 'Senior Finance Lead',
-      code: 'EMP-1006',
-      department: 'Finance & Accounts',
-      role: 'HR',
-      email: 'priya.patel@nexus.com',
-      phone: '+1 (555) 789-0123',
-      employmentType: 'FULL TIME',
-      status: 'ACTIVE',
-      initials: 'PP',
-      avatarColor: Color(0xFF1D2730),
-    ),
-    Employee(
-      name: "Liam O'Connor",
-      designation: 'Backend Cloud Architect',
-      code: 'EMP-1007',
-      department: 'Engineering & Tech',
-      role: 'EMPLOYEE',
-      email: 'liam.oconnor@nexus.com',
-      phone: '+1 (555) 890-1234',
-      employmentType: 'FULL TIME',
-      status: 'ACTIVE',
-      initials: 'LO',
-      avatarColor: Color(0xFF657788),
-    ),
-    Employee(
-      name: 'Sophia Kim',
-      designation: 'Content & PR Specialist',
-      code: 'EMP-1008',
-      department: 'Marketing & Sales',
-      role: 'EMPLOYEE',
-      email: 'sophia.kim@nexus.com',
-      phone: '+1 (555) 901-2345',
-      employmentType: 'FULL TIME',
-      status: 'ON LEAVE',
-      initials: 'SK',
-      avatarColor: Color(0xFF3D91B5),
-    ),
-  ];
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  List<Employee> get filteredEmployees {
+  @override
+  void initState() {
+    super.initState();
+
+    _searchController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // ============================================================
+  // FILTER EMPLOYEES
+  // ============================================================
+
+  List<Employee> filterEmployees(List<Employee> employees) {
     final search = _searchController.text.toLowerCase().trim();
 
     return employees.where((employee) {
       final matchesSearch =
           search.isEmpty ||
               employee.name.toLowerCase().contains(search) ||
-              employee.code.toLowerCase().contains(search) ||
+              employee.employeeId.toLowerCase().contains(search) ||
               employee.department.toLowerCase().contains(search) ||
               employee.email.toLowerCase().contains(search);
 
@@ -153,46 +68,72 @@ class _EmployeesPageState extends State<EmployeesPage> {
     }).toList();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(() {
-      setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final bool compact = constraints.maxWidth < 900;
+        child: StreamBuilder<QuerySnapshot>(
+          stream: _firestore.collection('users').snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              );
+            }
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                compact ? 18 : 24,
-                compact ? 18 : 0,
-                compact ? 18 : 24,
-                40,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(compact),
-                  const SizedBox(height: 24),
-                  _buildFilters(compact),
-                  const SizedBox(height: 24),
-                  _buildEmployeeContent(compact),
-                ],
-              ),
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+
+            final employees = snapshot.data!.docs.map((doc) {
+              return Employee.fromFirestore(doc);
+            }).toList();
+
+            final filteredEmployees = filterEmployees(employees);
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final bool compact = constraints.maxWidth < 900;
+
+                return SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? 18 : 24,
+                    compact ? 18 : 0,
+                    compact ? 18 : 24,
+                    40,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(
+                        compact,
+                        employees.length,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      _buildFilters(compact),
+
+                      const SizedBox(height: 24),
+
+                      _buildEmployeeContent(
+                        filteredEmployees,
+                        compact,
+                      ),
+                    ],
+                  ),
+                );
+              },
             );
           },
         ),
@@ -200,11 +141,11 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // HEADER
-  // ------------------------------------------------------------
+  // ============================================================
 
-  Widget _buildHeader(bool compact) {
+  Widget _buildHeader(bool compact, int employeeCount) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(
@@ -231,7 +172,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Wrap(
@@ -260,9 +200,10 @@ class _EmployeesPageState extends State<EmployeesPage> {
                         ),
                       ),
                     ),
-                    const Text(
-                      '· 8 record(s)',
-                      style: TextStyle(
+
+                    Text(
+                      '· $employeeCount record(s)',
+                      style: const TextStyle(
                         color: Color(0xFFAEB8D2),
                         fontSize: 13,
                       ),
@@ -270,6 +211,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
                   ],
                 ),
               ),
+
               if (!compact)
                 Row(
                   children: [
@@ -279,7 +221,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
                       filled: false,
                       onTap: _exportCsv,
                     ),
+
                     const SizedBox(width: 10),
+
                     _headerButton(
                       icon: Icons.person_add_alt_1_outlined,
                       title: 'Add Employee',
@@ -299,14 +243,13 @@ class _EmployeesPageState extends State<EmployeesPage> {
               color: Colors.white,
               fontSize: compact ? 26 : 28,
               fontWeight: FontWeight.w800,
-              letterSpacing: -0.6,
             ),
           ),
 
           const SizedBox(height: 6),
 
           const Text(
-            'Search, filter, view complete personnel profiles, manage compensation, and onboard team members.',
+            'Search, filter, view complete personnel profiles, manage employees and onboard team members.',
             style: TextStyle(
               color: Color(0xFFC6CEE1),
               fontSize: 13,
@@ -316,6 +259,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
 
           if (compact) ...[
             const SizedBox(height: 18),
+
             Row(
               children: [
                 Expanded(
@@ -326,7 +270,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
                     onTap: _exportCsv,
                   ),
                 ),
+
                 const SizedBox(width: 10),
+
                 Expanded(
                   child: _headerButton(
                     icon: Icons.person_add_alt_1_outlined,
@@ -353,19 +299,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
       height: 42,
       child: ElevatedButton.icon(
         onPressed: onTap,
-        icon: Icon(
-          icon,
-          size: 18,
-          color: filled ? Colors.white : const Color(0xFFDDE3F2),
-        ),
-        label: Text(
-          title,
-          style: TextStyle(
-            color: filled ? Colors.white : const Color(0xFFDDE3F2),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        icon: Icon(icon, size: 18),
+        label: Text(title),
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor:
@@ -385,9 +320,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // FILTERS
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _buildFilters(bool compact) {
     return Container(
@@ -399,66 +334,26 @@ class _EmployeesPageState extends State<EmployeesPage> {
         border: Border.all(
           color: const Color(0xFFDCE3EC),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: compact
           ? Column(
         children: [
           _buildSearchField(),
+
           const SizedBox(height: 12),
-          _buildDropdown(
-            value: selectedDepartment,
-            items: const [
-              'All Departments',
-              'Executive & HR',
-              'Engineering & Tech',
-              'Product & Design',
-              'Marketing & Sales',
-              'Finance & Accounts',
-            ],
-            onChanged: (value) {
-              setState(() {
-                selectedDepartment = value;
-              });
-            },
-          ),
+
+          _departmentDropdown(),
+
           const SizedBox(height: 12),
-          _buildDropdown(
-            value: selectedEmploymentType,
-            items: const [
-              'All Employment Types',
-              'FULL TIME',
-              'PART TIME',
-              'CONTRACT',
-            ],
-            onChanged: (value) {
-              setState(() {
-                selectedEmploymentType = value;
-              });
-            },
-          ),
+
+          _employmentDropdown(),
+
           const SizedBox(height: 12),
-          _buildDropdown(
-            value: selectedStatus,
-            items: const [
-              'All Statuses',
-              'ACTIVE',
-              'ON LEAVE',
-              'INACTIVE',
-            ],
-            onChanged: (value) {
-              setState(() {
-                selectedStatus = value;
-              });
-            },
-          ),
+
+          _statusDropdown(),
+
           const SizedBox(height: 12),
+
           _buildViewToggle(),
         ],
       )
@@ -468,60 +363,27 @@ class _EmployeesPageState extends State<EmployeesPage> {
             flex: 2,
             child: _buildSearchField(),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
-            child: _buildDropdown(
-              value: selectedDepartment,
-              items: const [
-                'All Departments',
-                'Executive & HR',
-                'Engineering & Tech',
-                'Product & Design',
-                'Marketing & Sales',
-                'Finance & Accounts',
-              ],
-              onChanged: (value) {
-                setState(() {
-                  selectedDepartment = value;
-                });
-              },
-            ),
+            child: _departmentDropdown(),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
-            child: _buildDropdown(
-              value: selectedEmploymentType,
-              items: const [
-                'All Employment Types',
-                'FULL TIME',
-                'PART TIME',
-                'CONTRACT',
-              ],
-              onChanged: (value) {
-                setState(() {
-                  selectedEmploymentType = value;
-                });
-              },
-            ),
+            child: _employmentDropdown(),
           ),
+
           const SizedBox(width: 12),
+
           Expanded(
-            child: _buildDropdown(
-              value: selectedStatus,
-              items: const [
-                'All Statuses',
-                'ACTIVE',
-                'ON LEAVE',
-                'INACTIVE',
-              ],
-              onChanged: (value) {
-                setState(() {
-                  selectedStatus = value;
-                });
-              },
-            ),
+            child: _statusDropdown(),
           ),
+
           const SizedBox(width: 12),
+
           _buildViewToggle(),
         ],
       ),
@@ -533,58 +395,86 @@ class _EmployeesPageState extends State<EmployeesPage> {
       height: 42,
       child: TextField(
         controller: _searchController,
-        style: const TextStyle(
-          fontSize: 13,
-          color: Color(0xFF17213A),
-        ),
         decoration: InputDecoration(
           hintText: 'Search directory...',
-          hintStyle: const TextStyle(
-            color: Color(0xFF8EA0BD),
-            fontSize: 12,
-          ),
-          prefixIcon: const Icon(
-            Icons.search,
-            size: 20,
-            color: Color(0xFF8EA0BD),
-          ),
+          prefixIcon: const Icon(Icons.search),
+
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
+            icon: const Icon(Icons.close),
             onPressed: () {
               _searchController.clear();
             },
-            icon: const Icon(
-              Icons.close,
-              size: 17,
-            ),
           )
               : null,
+
           filled: true,
           fillColor: const Color(0xFFF8FAFC),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 0,
-          ),
+
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(
-              color: Color(0xFFD9E2ED),
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(
-              color: Color(0xFFD9E2ED),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(
-              color: Color(0xFF5942F5),
-            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _departmentDropdown() {
+    return _buildDropdown(
+      value: selectedDepartment,
+      items: const [
+        'All Departments',
+        'Executive & HR',
+        'Engineering',
+        'Engineering & Tech',
+        'Product & Design',
+        'Marketing & Sales',
+        'Finance & Accounts',
+        'HR',
+      ],
+      onChanged: (value) {
+        setState(() {
+          selectedDepartment = value;
+        });
+      },
+    );
+  }
+
+  Widget _employmentDropdown() {
+    return _buildDropdown(
+      value: selectedEmploymentType,
+      items: const [
+        'All Employment Types',
+        'Full-time',
+        'Full Time',
+        'FULL TIME',
+        'Part-time',
+        'PART TIME',
+        'Contract',
+        'CONTRACT',
+      ],
+      onChanged: (value) {
+        setState(() {
+          selectedEmploymentType = value;
+        });
+      },
+    );
+  }
+
+  Widget _statusDropdown() {
+    return _buildDropdown(
+      value: selectedStatus,
+      items: const [
+        'All Statuses',
+        'ACTIVE',
+        'ON LEAVE',
+        'INACTIVE',
+      ],
+      onChanged: (value) {
+        setState(() {
+          selectedStatus = value;
+        });
+      },
     );
   }
 
@@ -607,18 +497,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 20,
-            color: Color(0xFF52637E),
-          ),
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF253653),
-            fontWeight: FontWeight.w500,
-          ),
           items: items.map((item) {
-            return DropdownMenuItem<String>(
+            return DropdownMenuItem(
               value: item,
               child: Text(
                 item,
@@ -655,6 +535,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
               });
             },
           ),
+
           _toggleButton(
             icon: Icons.grid_view_outlined,
             selected: !isListView,
@@ -682,18 +563,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
         decoration: BoxDecoration(
           color: selected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          boxShadow: selected
-              ? [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 4,
-            ),
-          ]
-              : null,
         ),
         child: Icon(
           icon,
-          size: 18,
           color: selected
               ? const Color(0xFF4F42E8)
               : const Color(0xFF71819B),
@@ -702,29 +574,33 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  // ------------------------------------------------------------
-  // EMPLOYEE CONTENT
-  // ------------------------------------------------------------
+  // ============================================================
+  // CONTENT
+  // ============================================================
 
-  Widget _buildEmployeeContent(bool compact) {
-    final data = filteredEmployees;
-
-    if (data.isEmpty) {
+  Widget _buildEmployeeContent(
+      List<Employee> employees,
+      bool compact,
+      ) {
+    if (employees.isEmpty) {
       return _buildEmptyState();
     }
 
     if (!isListView) {
-      return _buildGridView(data);
+      return _buildGridView(employees);
     }
 
-    return _buildTable(data, compact);
+    return _buildTable(employees, compact);
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // TABLE
-  // ------------------------------------------------------------
+  // ============================================================
 
-  Widget _buildTable(List<Employee> data, bool compact) {
+  Widget _buildTable(
+      List<Employee> employees,
+      bool compact,
+      ) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -733,13 +609,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
         border: Border.all(
           color: const Color(0xFFDCE3EC),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -750,7 +619,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
             child: Column(
               children: [
                 _buildTableHeader(),
-                ...data.map(
+
+                ...employees.map(
                       (employee) => _buildEmployeeRow(employee),
                 ),
               ],
@@ -772,26 +642,32 @@ class _EmployeesPageState extends State<EmployeesPage> {
             width: 260,
             child: _HeaderText('EMPLOYEE'),
           ),
+
           SizedBox(
             width: 112,
             child: _HeaderText('CODE'),
           ),
+
           SizedBox(
             width: 190,
             child: _HeaderText('DEPARTMENT & ROLE'),
           ),
+
           SizedBox(
             width: 235,
             child: _HeaderText('CONTACT'),
           ),
+
           SizedBox(
             width: 118,
             child: _HeaderText('TYPE'),
           ),
+
           SizedBox(
             width: 130,
             child: _HeaderText('STATUS'),
           ),
+
           Expanded(
             child: _HeaderText(
               'ACTIONS',
@@ -816,12 +692,16 @@ class _EmployeesPageState extends State<EmployeesPage> {
       ),
       child: Row(
         children: [
+          // EMPLOYEE
+
           SizedBox(
             width: 260,
             child: Row(
               children: [
                 _buildAvatar(employee),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -832,12 +712,12 @@ class _EmployeesPageState extends State<EmployeesPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF13203A),
-                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+
                       const SizedBox(height: 3),
+
                       Text(
                         employee.designation,
                         maxLines: 1,
@@ -854,17 +734,20 @@ class _EmployeesPageState extends State<EmployeesPage> {
             ),
           ),
 
+          // CODE
+
           SizedBox(
             width: 112,
             child: Text(
-              employee.code,
+              employee.employeeId,
               style: const TextStyle(
-                color: Color(0xFF28436B),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
+
+          // DEPARTMENT
 
           SizedBox(
             width: 190,
@@ -875,16 +758,19 @@ class _EmployeesPageState extends State<EmployeesPage> {
                 Text(
                   employee.department,
                   style: const TextStyle(
-                    color: Color(0xFF1C2A44),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+
                 const SizedBox(height: 5),
+
                 _roleBadge(employee.role),
               ],
             ),
           ),
+
+          // CONTACT
 
           SizedBox(
             width: 235,
@@ -895,11 +781,12 @@ class _EmployeesPageState extends State<EmployeesPage> {
                 Text(
                   employee.email,
                   style: const TextStyle(
-                    color: Color(0xFF2C4D76),
                     fontSize: 10.5,
                   ),
                 ),
+
                 const SizedBox(height: 3),
+
                 Text(
                   employee.phone,
                   style: const TextStyle(
@@ -911,17 +798,20 @@ class _EmployeesPageState extends State<EmployeesPage> {
             ),
           ),
 
+          // TYPE
+
           SizedBox(
             width: 118,
             child: Text(
-              employee.employmentType,
+              employee.employmentType.toUpperCase(),
               style: const TextStyle(
-                color: Color(0xFF17233A),
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
+
+          // STATUS
 
           SizedBox(
             width: 130,
@@ -930,6 +820,8 @@ class _EmployeesPageState extends State<EmployeesPage> {
               child: _statusBadge(employee.status),
             ),
           ),
+
+          // ACTIONS
 
           Expanded(
             child: Row(
@@ -940,13 +832,17 @@ class _EmployeesPageState extends State<EmployeesPage> {
                   tooltip: 'View',
                   onTap: () => _viewEmployee(employee),
                 ),
+
                 const SizedBox(width: 10),
+
                 _actionButton(
                   icon: Icons.edit_outlined,
                   tooltip: 'Edit',
                   onTap: () => _editEmployee(employee),
                 ),
+
                 const SizedBox(width: 10),
+
                 _actionButton(
                   icon: Icons.delete_outline,
                   tooltip: 'Delete',
@@ -960,15 +856,15 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // GRID VIEW
-  // ------------------------------------------------------------
+  // ============================================================
 
-  Widget _buildGridView(List<Employee> data) {
+  Widget _buildGridView(List<Employee> employees) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: data.length,
+      itemCount: employees.length,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 430,
         mainAxisExtent: 230,
@@ -976,7 +872,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
         mainAxisSpacing: 16,
       ),
       itemBuilder: (context, index) {
-        final employee = data[index];
+        final employee = employees[index];
 
         return Container(
           padding: const EdgeInsets.all(18),
@@ -986,24 +882,16 @@ class _EmployeesPageState extends State<EmployeesPage> {
             border: Border.all(
               color: const Color(0xFFDCE3EC),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  _buildAvatar(
-                    employee,
-                    radius: 27,
-                  ),
+                  _buildAvatar(employee, radius: 27),
+
                   const SizedBox(width: 12),
+
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1011,12 +899,12 @@ class _EmployeesPageState extends State<EmployeesPage> {
                         Text(
                           employee.name,
                           style: const TextStyle(
-                            fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF13203A),
                           ),
                         ),
+
                         const SizedBox(height: 4),
+
                         Text(
                           employee.designation,
                           style: const TextStyle(
@@ -1027,25 +915,34 @@ class _EmployeesPageState extends State<EmployeesPage> {
                       ],
                     ),
                   ),
+
                   _statusBadge(employee.status),
                 ],
               ),
+
               const SizedBox(height: 18),
+
               _gridInfoRow(
                 Icons.badge_outlined,
-                employee.code,
+                employee.employeeId,
               ),
+
               const SizedBox(height: 8),
+
               _gridInfoRow(
                 Icons.business_outlined,
                 employee.department,
               ),
+
               const SizedBox(height: 8),
+
               _gridInfoRow(
                 Icons.email_outlined,
                 employee.email,
               ),
+
               const Spacer(),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -1054,13 +951,17 @@ class _EmployeesPageState extends State<EmployeesPage> {
                     tooltip: 'View',
                     onTap: () => _viewEmployee(employee),
                   ),
+
                   const SizedBox(width: 10),
+
                   _actionButton(
                     icon: Icons.edit_outlined,
                     tooltip: 'Edit',
                     onTap: () => _editEmployee(employee),
                   ),
+
                   const SizedBox(width: 10),
+
                   _actionButton(
                     icon: Icons.delete_outline,
                     tooltip: 'Delete',
@@ -1083,14 +984,14 @@ class _EmployeesPageState extends State<EmployeesPage> {
           size: 16,
           color: const Color(0xFF7185A3),
         ),
+
         const SizedBox(width: 8),
+
         Expanded(
           child: Text(
             text,
-            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF405675),
               fontSize: 11,
             ),
           ),
@@ -1099,9 +1000,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // AVATAR
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _buildAvatar(
       Employee employee, {
@@ -1126,9 +1027,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // BADGES
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _roleBadge(String role) {
     return Container(
@@ -1141,7 +1042,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        role,
+        role.toUpperCase(),
         style: const TextStyle(
           color: Color(0xFF4D45F3),
           fontSize: 8.5,
@@ -1152,7 +1053,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
   }
 
   Widget _statusBadge(String status) {
-    final bool active = status == 'ACTIVE';
+    final bool active = status.toUpperCase() == 'ACTIVE';
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -1166,7 +1067,7 @@ class _EmployeesPageState extends State<EmployeesPage> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        status,
+        status.toUpperCase(),
         style: TextStyle(
           color: active
               ? const Color(0xFF009B67)
@@ -1187,7 +1088,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
       message: tooltip,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
         child: Padding(
           padding: const EdgeInsets.all(3),
           child: Icon(
@@ -1200,9 +1100,9 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // EMPTY STATE
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _buildEmptyState() {
     return Container(
@@ -1211,9 +1111,6 @@ class _EmployeesPageState extends State<EmployeesPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFDCE3EC),
-        ),
       ),
       child: const Column(
         children: [
@@ -1222,49 +1119,65 @@ class _EmployeesPageState extends State<EmployeesPage> {
             size: 50,
             color: Color(0xFFA0AEC0),
           ),
+
           SizedBox(height: 15),
+
           Text(
             'No employees found',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF26344D),
             ),
           ),
+
           SizedBox(height: 6),
+
           Text(
             'Try changing your search or filter options.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF8291A8),
-            ),
           ),
         ],
       ),
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // ACTIONS
-  // ------------------------------------------------------------
+  // ============================================================
 
   void _exportCsv() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Employee CSV export started.'),
-        behavior: SnackBarBehavior.floating,
+        content: Text('CSV export feature can be added next.'),
       ),
     );
   }
+
+  // ADD EMPLOYEE
 
   void _addEmployee() {
     showDialog(
       context: context,
       builder: (context) {
-        return const _AddEmployeeDialog();
+        return _EmployeeDialog(
+          onSave: (data) async {
+            await _firestore.collection('users').add(data);
+
+            if (mounted) {
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Employee added successfully'),
+                ),
+              );
+            }
+          },
+        );
       },
     );
   }
+
+  // VIEW EMPLOYEE
 
   void _viewEmployee(Employee employee) {
     showDialog(
@@ -1272,19 +1185,39 @@ class _EmployeesPageState extends State<EmployeesPage> {
       builder: (context) {
         return AlertDialog(
           title: Text(employee.name),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(employee.designation),
-              const SizedBox(height: 12),
-              Text('Employee Code: ${employee.code}'),
-              Text('Department: ${employee.department}'),
-              Text('Role: ${employee.role}'),
-              Text('Email: ${employee.email}'),
-              Text('Phone: ${employee.phone}'),
-              Text('Status: ${employee.status}'),
-            ],
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Designation: ${employee.designation}'),
+                const SizedBox(height: 8),
+
+                Text('Employee ID: ${employee.employeeId}'),
+                const SizedBox(height: 8),
+
+                Text('Department: ${employee.department}'),
+                const SizedBox(height: 8),
+
+                Text('Role: ${employee.role}'),
+                const SizedBox(height: 8),
+
+                Text('Email: ${employee.email}'),
+                const SizedBox(height: 8),
+
+                Text('Phone: ${employee.phone}'),
+                const SizedBox(height: 8),
+
+                Text('Employment Type: ${employee.employmentType}'),
+                const SizedBox(height: 8),
+
+                Text('Status: ${employee.status}'),
+                const SizedBox(height: 8),
+
+                Text('Address: ${employee.address}'),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1297,19 +1230,41 @@ class _EmployeesPageState extends State<EmployeesPage> {
     );
   }
 
+  // EDIT EMPLOYEE
+
   void _editEmployee(Employee employee) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit ${employee.name}'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return _EmployeeDialog(
+          employee: employee,
+          onSave: (data) async {
+            await _firestore
+                .collection('users')
+                .doc(employee.documentId)
+                .update(data);
+
+            if (mounted) {
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Employee updated successfully'),
+                ),
+              );
+            }
+          },
+        );
+      },
     );
   }
+
+  // DELETE EMPLOYEE
 
   void _deleteEmployee(Employee employee) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Delete Employee'),
           content: Text(
@@ -1317,23 +1272,26 @@ class _EmployeesPageState extends State<EmployeesPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
+
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
+              onPressed: () async {
+                Navigator.pop(dialogContext);
 
-                setState(() {
-                  employees.remove(employee);
-                });
+                await _firestore
+                    .collection('users')
+                    .doc(employee.documentId)
+                    .delete();
 
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Employee deleted successfully.'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Employee deleted successfully'),
+                    ),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
@@ -1381,92 +1339,323 @@ class _HeaderText extends StatelessWidget {
 // ============================================================
 
 class Employee {
+  final String documentId;
+
   final String name;
   final String designation;
-  final String code;
+  final String employeeId;
   final String department;
   final String role;
   final String email;
   final String phone;
   final String employmentType;
   final String status;
-  final String initials;
-  final Color avatarColor;
+  final String address;
+  final String avatar;
 
   Employee({
+    required this.documentId,
     required this.name,
     required this.designation,
-    required this.code,
+    required this.employeeId,
     required this.department,
     required this.role,
     required this.email,
     required this.phone,
     required this.employmentType,
     required this.status,
-    required this.initials,
-    required this.avatarColor,
+    required this.address,
+    required this.avatar,
   });
+
+  // ============================================================
+  // FIRESTORE DATA
+  // ============================================================
+
+  factory Employee.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
+    return Employee(
+      documentId: doc.id,
+
+      name: data['name']?.toString() ?? 'Unknown',
+
+      designation:
+      data['designation']?.toString() ??
+          data['position']?.toString() ??
+          'Employee',
+
+      employeeId:
+      data['employeeId']?.toString() ??
+          data['code']?.toString() ??
+          doc.id,
+
+      department: data['department']?.toString() ?? 'Not Assigned',
+
+      role: data['role']?.toString() ?? 'EMPLOYEE',
+
+      email: data['email']?.toString() ?? '',
+
+      phone: data['phone']?.toString() ?? '',
+
+      employmentType:
+      data['employmentType']?.toString() ??
+          'Full-time',
+
+      status:
+      data['status']?.toString() ??
+          'ACTIVE',
+
+      address: data['address']?.toString() ?? '',
+
+      avatar: data['avatar']?.toString() ?? '',
+    );
+  }
+
+  String get initials {
+    if (name.trim().isEmpty) return 'U';
+
+    final parts = name.trim().split(' ');
+
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  Color get avatarColor {
+    final colors = [
+      const Color(0xFF556DDC),
+      const Color(0xFF3D91B5),
+      const Color(0xFFE7A36C),
+      const Color(0xFF657788),
+      const Color(0xFF9B6540),
+      const Color(0xFF7B61FF),
+    ];
+
+    return colors[name.hashCode.abs() % colors.length];
+  }
 }
 
 // ============================================================
-// ADD EMPLOYEE DIALOG
+// ADD / EDIT EMPLOYEE DIALOG
 // ============================================================
 
-class _AddEmployeeDialog extends StatefulWidget {
-  const _AddEmployeeDialog();
+class _EmployeeDialog extends StatefulWidget {
+  final Employee? employee;
+
+  final Future<void> Function(Map<String, dynamic> data) onSave;
+
+  const _EmployeeDialog({
+    this.employee,
+    required this.onSave,
+  });
 
   @override
-  State<_AddEmployeeDialog> createState() => _AddEmployeeDialogState();
+  State<_EmployeeDialog> createState() => _EmployeeDialogState();
 }
 
-class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
-  final nameController = TextEditingController();
-  final designationController = TextEditingController();
-  final emailController = TextEditingController();
-  final phoneController = TextEditingController();
+class _EmployeeDialogState extends State<_EmployeeDialog> {
+  late TextEditingController nameController;
+  late TextEditingController designationController;
+  late TextEditingController employeeIdController;
+  late TextEditingController departmentController;
+  late TextEditingController roleController;
+  late TextEditingController emailController;
+  late TextEditingController phoneController;
+  late TextEditingController employmentTypeController;
+  late TextEditingController statusController;
+  late TextEditingController addressController;
+
+  bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final employee = widget.employee;
+
+    nameController = TextEditingController(
+      text: employee?.name ?? '',
+    );
+
+    designationController = TextEditingController(
+      text: employee?.designation ?? '',
+    );
+
+    employeeIdController = TextEditingController(
+      text: employee?.employeeId ?? '',
+    );
+
+    departmentController = TextEditingController(
+      text: employee?.department ?? '',
+    );
+
+    roleController = TextEditingController(
+      text: employee?.role ?? 'EMPLOYEE',
+    );
+
+    emailController = TextEditingController(
+      text: employee?.email ?? '',
+    );
+
+    phoneController = TextEditingController(
+      text: employee?.phone ?? '',
+    );
+
+    employmentTypeController = TextEditingController(
+      text: employee?.employmentType ?? 'Full-time',
+    );
+
+    statusController = TextEditingController(
+      text: employee?.status ?? 'ACTIVE',
+    );
+
+    addressController = TextEditingController(
+      text: employee?.address ?? '',
+    );
+  }
 
   @override
   void dispose() {
     nameController.dispose();
     designationController.dispose();
+    employeeIdController.dispose();
+    departmentController.dispose();
+    roleController.dispose();
     emailController.dispose();
     phoneController.dispose();
+    employmentTypeController.dispose();
+    statusController.dispose();
+    addressController.dispose();
+
     super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (nameController.text.trim().isEmpty) {
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    final data = {
+      'name': nameController.text.trim(),
+      'designation': designationController.text.trim(),
+      'employeeId': employeeIdController.text.trim(),
+      'department': departmentController.text.trim(),
+      'role': roleController.text.trim().toUpperCase(),
+      'email': emailController.text.trim(),
+      'phone': phoneController.text.trim(),
+      'employmentType': employmentTypeController.text.trim(),
+      'status': statusController.text.trim().toUpperCase(),
+      'address': addressController.text.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (widget.employee == null) {
+      data['createdAt'] = FieldValue.serverTimestamp();
+    }
+
+    try {
+      await widget.onSave(data);
+    } catch (e) {
+      setState(() {
+        loading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.employee != null;
+
     return AlertDialog(
-      title: const Text(
-        'Add Employee',
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-        ),
+      title: Text(
+        isEditing ? 'Edit Employee' : 'Add Employee',
       ),
       content: SizedBox(
-        width: 430,
+        width: 500,
         child: SingleChildScrollView(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
               _field(
-                controller: nameController,
-                label: 'Employee Name',
+                nameController,
+                'Employee Name',
               ),
+
               const SizedBox(height: 12),
+
               _field(
-                controller: designationController,
-                label: 'Designation',
+                designationController,
+                'Designation',
               ),
+
               const SizedBox(height: 12),
+
               _field(
-                controller: emailController,
-                label: 'Email',
+                employeeIdController,
+                'Employee ID',
               ),
+
               const SizedBox(height: 12),
+
               _field(
-                controller: phoneController,
-                label: 'Phone',
+                departmentController,
+                'Department',
+              ),
+
+              const SizedBox(height: 12),
+
+              _field(
+                roleController,
+                'Role (ADMIN / MANAGER / EMPLOYEE)',
+              ),
+
+              const SizedBox(height: 12),
+
+              _field(
+                emailController,
+                'Email',
+              ),
+
+              const SizedBox(height: 12),
+
+              _field(
+                phoneController,
+                'Phone',
+              ),
+
+              const SizedBox(height: 12),
+
+              _field(
+                employmentTypeController,
+                'Employment Type',
+              ),
+
+              const SizedBox(height: 12),
+
+              _field(
+                statusController,
+                'Status',
+              ),
+
+              const SizedBox(height: 12),
+
+              _field(
+                addressController,
+                'Address',
               ),
             ],
           ),
@@ -1474,36 +1663,41 @@ class _AddEmployeeDialogState extends State<_AddEmployeeDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: loading
+              ? null
+              : () {
+            Navigator.pop(context);
+          },
           child: const Text('Cancel'),
         ),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pop(context);
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Employee added successfully.',
-                ),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          },
+        ElevatedButton(
+          onPressed: loading ? null : _save,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF5138F5),
             foregroundColor: Colors.white,
           ),
-          child: const Text('Add Employee'),
+          child: loading
+              ? const SizedBox(
+            height: 18,
+            width: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          )
+              : Text(
+            isEditing ? 'Update Employee' : 'Add Employee',
+          ),
         ),
       ],
     );
   }
 
-  Widget _field({
-    required TextEditingController controller,
-    required String label,
-  }) {
+  Widget _field(
+      TextEditingController controller,
+      String label,
+      ) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
