@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class LeaveManagementPage extends StatefulWidget {
@@ -10,72 +11,257 @@ class LeaveManagementPage extends StatefulWidget {
 class _LeaveManagementPageState extends State<LeaveManagementPage> {
   String selectedFilter = 'All Requests';
 
-  final List<LeaveRequest> leaveRequests = [
-    LeaveRequest(
-      employee: 'Alex Mercer',
-      employeeId: 'EMP-1015',
-      leaveType: 'Annual Leave',
-      fromDate: 'Aug 15, 2026',
-      toDate: 'Aug 17, 2026',
-      days: 3,
-      reason: 'Personal vacation',
-      status: 'Pending',
-      initials: 'AM',
-    ),
-    LeaveRequest(
-      employee: 'Emily Chen',
-      employeeId: 'EMP-1020',
-      leaveType: 'Sick Leave',
-      fromDate: 'Aug 18, 2026',
-      toDate: 'Aug 18, 2026',
-      days: 1,
-      reason: 'Medical appointment',
-      status: 'Pending',
-      initials: 'EC',
-    ),
-    LeaveRequest(
-      employee: 'David Vance',
-      employeeId: 'EMP-1004',
-      leaveType: 'Annual Leave',
-      fromDate: 'Aug 22, 2026',
-      toDate: 'Aug 26, 2026',
-      days: 5,
-      reason: 'Family vacation',
-      status: 'Approved',
-      initials: 'DV',
-    ),
-    LeaveRequest(
-      employee: 'Marcus Sterling',
-      employeeId: 'EMP-1012',
-      leaveType: 'Personal Leave',
-      fromDate: 'Aug 28, 2026',
-      toDate: 'Aug 29, 2026',
-      days: 2,
-      reason: 'Personal work',
-      status: 'Rejected',
-      initials: 'MS',
-    ),
-    LeaveRequest(
-      employee: 'Priya Patel',
-      employeeId: 'EMP-1008',
-      leaveType: 'Annual Leave',
-      fromDate: 'Sep 02, 2026',
-      toDate: 'Sep 04, 2026',
-      days: 3,
-      reason: 'Family function',
-      status: 'Pending',
-      initials: 'PP',
-    ),
-  ];
+  final TextEditingController searchController = TextEditingController();
+  String searchQuery = '';
+
+  // ============================================================
+  // FIRESTORE STATE
+  // ============================================================
+
+  List<LeaveRequest> leaveRequests = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLeaveRequests();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  // ============================================================
+  // FIRESTORE HELPERS
+  // ============================================================
+
+  Future<void> _fetchLeaveRequests() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      if (!mounted) return;
+
+      setState(() {
+        leaveRequests = snapshot.docs
+            .map((doc) => LeaveRequest.fromFirestore(doc.id, doc.data()))
+            .toList();
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Failed to fetch leave requests: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        leaveRequests = [];
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _updateStatus(LeaveRequest request, String status) async {
+    // Optimistic local update
+    setState(() {
+      request.status = status;
+    });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .doc(request.id)
+          .update({
+        'status': status,
+        'reviewedAt': DateTime.now().toIso8601String(),
+        'reviewedBy': 'Sarah Jenkins',
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${request.employee} leave request $status.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Failed to update leave status: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to update leave request. Try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      // Re-fetch to reflect the true server state on failure.
+      _fetchLeaveRequests();
+    }
+  }
+
+  Future<void> _createLeaveRequest({
+    required String employeeName,
+    required String leaveType,
+    required String reason,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final int totalDays = endDate.difference(startDate).inDays + 1;
+
+    try {
+      final docRef =
+      await FirebaseFirestore.instance.collection('leave_requests').add({
+        'employeeName': employeeName,
+        'employeeId': '',
+        'employeeAvatar': '',
+        'department': '',
+        'leaveType': leaveType,
+        'reason': reason,
+        'startDate': startDate.toIso8601String(),
+        'endDate': endDate.toIso8601String(),
+        'totalDays': totalDays,
+        'status': 'Pending',
+        'appliedDate': DateTime.now().toIso8601String(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'attachmentName': '',
+        'rejectionReason': null,
+        'reviewedAt': null,
+        'reviewedBy': null,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Leave request created successfully.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      // Insert locally so the UI updates immediately, then re-sync.
+      setState(() {
+        leaveRequests.insert(
+          0,
+          LeaveRequest(
+            id: docRef.id,
+            employee: employeeName,
+            employeeId: '',
+            leaveType: leaveType,
+            fromDate: _formatDate(startDate),
+            toDate: _formatDate(endDate),
+            startDateRaw: startDate,
+            endDateRaw: endDate,
+            days: totalDays,
+            reason: reason,
+            status: 'Pending',
+            initials: _getInitials(employeeName),
+          ),
+        );
+      });
+    } catch (e) {
+      debugPrint('Failed to create leave request: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to create leave request. Try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // FILTERING
+  // ============================================================
 
   List<LeaveRequest> get filteredRequests {
-    if (selectedFilter == 'All Requests') {
-      return leaveRequests;
+    Iterable<LeaveRequest> result = leaveRequests;
+
+    if (selectedFilter != 'All Requests') {
+      result = result.where((request) => request.status == selectedFilter);
     }
 
+    if (searchQuery.trim().isNotEmpty) {
+      final query = searchQuery.trim().toLowerCase();
+
+      result = result.where((request) =>
+      request.employee.toLowerCase().contains(query) ||
+          request.leaveType.toLowerCase().contains(query) ||
+          request.reason.toLowerCase().contains(query));
+    }
+
+    return result.toList();
+  }
+
+  // ============================================================
+  // STAT COMPUTATIONS
+  // ============================================================
+
+  int get _pendingCount =>
+      leaveRequests.where((r) => r.status == 'Pending').length;
+
+  int get _approvedCount =>
+      leaveRequests.where((r) => r.status == 'Approved').length;
+
+  int get _onLeaveTodayCount {
+    final DateTime today = DateTime.now();
+    final DateTime todayDateOnly = DateTime(today.year, today.month, today.day);
+
+    return leaveRequests.where((r) {
+      if (r.status != 'Approved') return false;
+      if (r.startDateRaw == null || r.endDateRaw == null) return false;
+
+      final start = DateTime(
+        r.startDateRaw!.year,
+        r.startDateRaw!.month,
+        r.startDateRaw!.day,
+      );
+      final end = DateTime(
+        r.endDateRaw!.year,
+        r.endDateRaw!.month,
+        r.endDateRaw!.day,
+      );
+
+      return !todayDateOnly.isBefore(start) && !todayDateOnly.isAfter(end);
+    }).length;
+  }
+
+  int get _totalDaysThisMonth {
+    final DateTime now = DateTime.now();
+
     return leaveRequests
-        .where((request) => request.status == selectedFilter)
-        .toList();
+        .where((r) =>
+    r.startDateRaw != null &&
+        r.startDateRaw!.year == now.year &&
+        r.startDateRaw!.month == now.month)
+        .fold<int>(0, (sum, r) => sum + r.days);
+  }
+
+  // ============================================================
+  // DATE FORMATTING
+  // ============================================================
+
+  static const List<String> _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _formatDate(DateTime date) {
+    final String month = _months[date.month - 1];
+    final String day = date.day.toString().padLeft(2, '0');
+    return '$month $day, ${date.year}';
   }
 
   @override
@@ -182,7 +368,7 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
             ),
             const SizedBox(width: 10),
             Text(
-              '· 2 Pending Requests',
+              '· $_pendingCount Pending Requests',
               style: TextStyle(
                 color: Colors.blueGrey.shade300,
                 fontSize: 14,
@@ -251,28 +437,28 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
         final cards = [
           _statCard(
             title: 'PENDING REQUESTS',
-            value: '2',
+            value: '$_pendingCount',
             subtitle: 'Awaiting approval',
             icon: Icons.pending_actions_outlined,
             iconColor: Colors.orange,
           ),
           _statCard(
             title: 'APPROVED',
-            value: '1',
+            value: '$_approvedCount',
             subtitle: 'Approved leave requests',
             icon: Icons.check_circle_outline,
             iconColor: Colors.green,
           ),
           _statCard(
             title: 'ON LEAVE TODAY',
-            value: '3',
+            value: '$_onLeaveTodayCount',
             subtitle: 'Employees currently away',
             icon: Icons.beach_access_outlined,
             iconColor: Colors.blue,
           ),
           _statCard(
             title: 'TOTAL DAYS',
-            value: '14',
+            value: '$_totalDaysThisMonth',
             subtitle: 'Leave days this month',
             icon: Icons.calendar_month_outlined,
             iconColor: Colors.deepPurple,
@@ -437,8 +623,14 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
           color: Colors.grey.shade300,
         ),
       ),
-      child: const TextField(
-        decoration: InputDecoration(
+      child: TextField(
+        controller: searchController,
+        onChanged: (value) {
+          setState(() {
+            searchQuery = value;
+          });
+        },
+        decoration: const InputDecoration(
           border: InputBorder.none,
           prefixIcon: Icon(
             Icons.search,
@@ -556,9 +748,35 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
             color: Colors.blueGrey.shade100,
           ),
           _buildTableHeader(),
-          ...filteredRequests.map(
-                (request) => _buildLeaveRow(request),
-          ),
+
+          if (isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ),
+            )
+          else if (filteredRequests.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: Text(
+                  'No leave requests match the current filters.',
+                  style: TextStyle(
+                    color: Colors.blueGrey.shade400,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...filteredRequests.map(
+                  (request) => _buildLeaveRow(request),
+            ),
         ],
       ),
     );
@@ -691,7 +909,9 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        request.employeeId,
+                        request.employeeId.isEmpty
+                            ? '--'
+                            : request.employeeId,
                         style: TextStyle(
                           color: Colors.blueGrey.shade400,
                           fontSize: 11,
@@ -841,28 +1061,6 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
   }
 
   // ============================================================
-  // APPROVE / REJECT
-  // ============================================================
-
-  void _updateStatus(
-      LeaveRequest request,
-      String status,
-      ) {
-    setState(() {
-      request.status = status;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${request.employee} leave request $status.',
-        ),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  // ============================================================
   // DETAILS DIALOG
   // ============================================================
 
@@ -890,7 +1088,7 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
               ),
               _detailRow(
                 'Employee ID',
-                request.employeeId,
+                request.employeeId.isEmpty ? '--' : request.employeeId,
               ),
               _detailRow(
                 'Leave Type',
@@ -975,12 +1173,48 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
     final reasonController = TextEditingController();
 
     String leaveType = 'Annual Leave';
+    DateTime? startDate;
+    DateTime? endDate;
 
     showDialog(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            Future<void> pickStartDate() async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: startDate ?? DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2035),
+              );
+
+              if (picked != null) {
+                setDialogState(() {
+                  startDate = picked;
+
+                  if (endDate != null && endDate!.isBefore(startDate!)) {
+                    endDate = startDate;
+                  }
+                });
+              }
+            }
+
+            Future<void> pickEndDate() async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: endDate ?? startDate ?? DateTime.now(),
+                firstDate: startDate ?? DateTime(2020),
+                lastDate: DateTime(2035),
+              );
+
+              if (picked != null) {
+                setDialogState(() {
+                  endDate = picked;
+                });
+              }
+            }
+
             return AlertDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
@@ -1028,6 +1262,10 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
                             value: 'Personal Leave',
                             child: Text('Personal Leave'),
                           ),
+                          DropdownMenuItem(
+                            value: 'Paid Leave',
+                            child: Text('Paid Leave'),
+                          ),
                         ],
                         onChanged: (value) {
                           if (value == null) return;
@@ -1036,6 +1274,32 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
                             leaveType = value;
                           });
                         },
+                      ),
+                      const SizedBox(height: 15),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: pickStartDate,
+                              child: Text(
+                                startDate == null
+                                    ? 'From Date'
+                                    : _formatDate(startDate!),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: pickEndDate,
+                              child: Text(
+                                endDate == null
+                                    ? 'To Date'
+                                    : _formatDate(endDate!),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 15),
                       TextField(
@@ -1066,38 +1330,26 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
                       return;
                     }
 
-                    setState(() {
-                      leaveRequests.insert(
-                        0,
-                        LeaveRequest(
-                          employee:
-                          employeeController.text.trim(),
-                          employeeId: 'NEW-REQUEST',
-                          leaveType: leaveType,
-                          fromDate: 'Not selected',
-                          toDate: 'Not selected',
-                          days: 1,
-                          reason:
-                          reasonController.text.trim().isEmpty
-                              ? 'No reason provided'
-                              : reasonController.text.trim(),
-                          status: 'Pending',
-                          initials: _getInitials(
-                            employeeController.text.trim(),
-                          ),
+                    if (startDate == null || endDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please select from and to dates.'),
+                          behavior: SnackBarBehavior.floating,
                         ),
                       );
-                    });
+                      return;
+                    }
 
                     Navigator.pop(dialogContext);
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Leave request created successfully.',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    _createLeaveRequest(
+                      employeeName: employeeController.text.trim(),
+                      leaveType: leaveType,
+                      reason: reasonController.text.trim().isEmpty
+                          ? 'No reason provided'
+                          : reasonController.text.trim(),
+                      startDate: startDate!,
+                      endDate: endDate!,
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -1133,25 +1385,102 @@ class _LeaveManagementPageState extends State<LeaveManagementPage> {
 // ============================================================
 
 class LeaveRequest {
+  final String id;
   final String employee;
   final String employeeId;
   final String leaveType;
   final String fromDate;
   final String toDate;
+  final DateTime? startDateRaw;
+  final DateTime? endDateRaw;
   final int days;
   final String reason;
   String status;
   final String initials;
 
   LeaveRequest({
+    required this.id,
     required this.employee,
     required this.employeeId,
     required this.leaveType,
     required this.fromDate,
     required this.toDate,
+    this.startDateRaw,
+    this.endDateRaw,
     required this.days,
     required this.reason,
     required this.status,
     required this.initials,
   });
+
+  // ============================================================
+  // FIRESTORE MAPPING
+  // ============================================================
+
+  factory LeaveRequest.fromFirestore(String id, Map<String, dynamic> data) {
+    final String employeeName =
+    (data['employeeName'] ?? 'Unknown').toString();
+
+    final DateTime? start = _parseDate(data['startDate']);
+    final DateTime? end = _parseDate(data['endDate']);
+
+    final int totalDays = data['totalDays'] is int
+        ? data['totalDays'] as int
+        : int.tryParse('${data['totalDays'] ?? 0}') ?? 0;
+
+    return LeaveRequest(
+      id: id,
+      employee: employeeName,
+      employeeId: (data['employeeId'] ?? '').toString(),
+      leaveType: (data['leaveType'] ?? '--').toString(),
+      fromDate: start != null ? _staticFormatDate(start) : '--',
+      toDate: end != null ? _staticFormatDate(end) : '--',
+      startDateRaw: start,
+      endDateRaw: end,
+      days: totalDays,
+      reason: (data['reason'] ?? '').toString(),
+      status: (data['status'] ?? 'Pending').toString(),
+      initials: _staticInitials(employeeName),
+    );
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
+  }
+
+  static const List<String> _staticMonths = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  static String _staticFormatDate(DateTime date) {
+    final String month = _staticMonths[date.month - 1];
+    final String day = date.day.toString().padLeft(2, '0');
+    return '$month $day, ${date.year}';
+  }
+
+  static String _staticInitials(String name) {
+    final parts = name.trim().split(' ');
+
+    if (parts.isEmpty || parts.first.isEmpty) {
+      return 'NA';
+    }
+
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class AttendancePage extends StatefulWidget {
@@ -23,6 +24,14 @@ class _AttendancePageState extends State<AttendancePage> {
   final TextEditingController shiftNoteController =
   TextEditingController();
 
+  // ============================================================
+  // FIRESTORE STATE
+  // ============================================================
+
+  List<Map<String, dynamic>> attendanceRecords = [];
+  Map<String, String> employeeNames = {};
+  bool isLoadingAttendance = true;
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +46,9 @@ class _AttendancePageState extends State<AttendancePage> {
         }
       },
     );
+
+    _loadEmployeeNames();
+    _fetchAttendance();
   }
 
   @override
@@ -44,6 +56,72 @@ class _AttendancePageState extends State<AttendancePage> {
     _timer?.cancel();
     shiftNoteController.dispose();
     super.dispose();
+  }
+
+  // ============================================================
+  // FIRESTORE HELPERS
+  // ============================================================
+
+  String _dateKey(DateTime date) {
+    final String month = date.month.toString().padLeft(2, '0');
+    final String day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  Future<void> _loadEmployeeNames() async {
+    try {
+      final snapshot =
+      await FirebaseFirestore.instance.collection('users').get();
+
+      if (!mounted) return;
+
+      setState(() {
+        employeeNames = {
+          for (final doc in snapshot.docs)
+            doc.id: (doc.data()['name'] ??
+                doc.data()['fullName'] ??
+                doc.id)
+                .toString(),
+        };
+      });
+    } catch (e) {
+      debugPrint('Failed to load employee names: $e');
+    }
+  }
+
+  Future<void> _fetchAttendance() async {
+    setState(() {
+      isLoadingAttendance = true;
+    });
+
+    try {
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+          .collection('attendance')
+          .where('date', isEqualTo: _dateKey(selectedDate));
+
+      if (selectedStatus != 'All Statuses') {
+        query = query.where('status', isEqualTo: selectedStatus);
+      }
+
+      final snapshot = await query.get();
+
+      if (!mounted) return;
+
+      setState(() {
+        attendanceRecords =
+            snapshot.docs.map((doc) => doc.data()).toList();
+        isLoadingAttendance = false;
+      });
+    } catch (e) {
+      debugPrint('Failed to fetch attendance: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        attendanceRecords = [];
+        isLoadingAttendance = false;
+      });
+    }
   }
 
   @override
@@ -675,6 +753,10 @@ class _AttendancePageState extends State<AttendancePage> {
             setState(() {
               selectedDepartment = value;
             });
+
+            // Note: attendance docs currently have no department field.
+            // Fetch is not re-triggered here until that field exists;
+            // filtering happens client-side once available.
           },
         ),
       ),
@@ -737,6 +819,8 @@ class _AttendancePageState extends State<AttendancePage> {
             setState(() {
               selectedStatus = value;
             });
+
+            _fetchAttendance();
           },
         ),
       ),
@@ -819,18 +903,175 @@ class _AttendancePageState extends State<AttendancePage> {
             ],
           ),
         ),
-        Container(
-          height: 105,
-          alignment: Alignment.center,
-          child: const Text(
-            'No attendance logs match the current filters.',
-            style: TextStyle(
-              color: Color(0xFF8197B0),
-              fontSize: 12,
+
+        if (isLoadingAttendance)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 34),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.4),
+              ),
+            ),
+          )
+        else if (attendanceRecords.isEmpty)
+          Container(
+            height: 105,
+            alignment: Alignment.center,
+            child: const Text(
+              'No attendance logs match the current filters.',
+              style: TextStyle(
+                color: Color(0xFF8197B0),
+                fontSize: 12,
+              ),
+            ),
+          )
+        else
+          ...attendanceRecords.map((record) => _buildAttendanceRow(record)),
+      ],
+    );
+  }
+
+  // ============================================================
+  // ATTENDANCE ROW (FROM FIRESTORE)
+  // ============================================================
+
+  Widget _buildAttendanceRow(Map<String, dynamic> record) {
+    final String employeeId = (record['employeeId'] ?? '').toString();
+    final String name = employeeNames[employeeId] ?? employeeId;
+    final String date = (record['date'] ?? '--').toString();
+    final String clockIn = (record['clockIn'] ?? '--').toString();
+    final String clockOut = record['clockOut'] == null
+        ? '--'
+        : record['clockOut'].toString();
+    final String totalHours = record['totalHours'] == null
+        ? '--'
+        : record['totalHours'].toString();
+    final String status = (record['status'] ?? '--').toString();
+    final String notes =
+    record['notes'] == null ? '--' : record['notes'].toString();
+
+    Color badgeBg;
+    Color badgeText;
+
+    switch (status) {
+      case 'Present':
+        badgeBg = const Color(0xFFE5F8F1);
+        badgeText = const Color(0xFF009A70);
+        break;
+      case 'Late':
+        badgeBg = const Color(0xFFFDECEA);
+        badgeText = const Color(0xFFD64545);
+        break;
+      case 'Absent':
+        badgeBg = const Color(0xFFF1F4F7);
+        badgeText = const Color(0xFF5B7189);
+        break;
+      default:
+        badgeBg = const Color(0xFFF1F4F7);
+        badgeText = const Color(0xFF5B7189);
+    }
+
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 17),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFEFF2F5)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 18,
+            child: Text(
+              name,
+              style: const TextStyle(
+                color: Color(0xFF0B1C35),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
-      ],
+          Expanded(
+            flex: 12,
+            child: Text(
+              date,
+              style: const TextStyle(
+                color: Color(0xFF607D9F),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 16,
+            child: Text(
+              clockIn,
+              style: const TextStyle(
+                color: Color(0xFF607D9F),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 18,
+            child: Text(
+              clockOut,
+              style: const TextStyle(
+                color: Color(0xFF607D9F),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 18,
+            child: Text(
+              totalHours,
+              style: const TextStyle(
+                color: Color(0xFF607D9F),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 14,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: badgeText,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 14,
+            child: Text(
+              notes,
+              style: const TextStyle(
+                color: Color(0xFF607D9F),
+                fontSize: 12,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -863,6 +1104,8 @@ class _AttendancePageState extends State<AttendancePage> {
       setState(() {
         selectedDate = picked;
       });
+
+      _fetchAttendance();
     }
   }
 

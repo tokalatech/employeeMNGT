@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'pages_dev1/dashboard_page.dart';
 import 'pages_dev1/employees_page.dart';
 import 'pages_dev1/attendance_page.dart';
@@ -7,6 +8,7 @@ import 'pages_dev1/performance_page.dart';
 import 'pages_dev1/analytics_page.dart';
 import 'pages_dev1/calendar_page.dart';
 import 'pages_dev1/settings_page.dart';
+
 import 'pages_dev2/leave_management_page.dart';
 import 'pages_dev2/announcements_page.dart';
 import 'pages_dev2/audit_logs_page.dart';
@@ -14,6 +16,8 @@ import 'pages_dev2/departments_page.dart';
 import 'pages_dev2/documents_page.dart';
 import 'pages_dev2/self_service_page.dart';
 import 'pages_dev2/helpdesk_page.dart';
+
+import 'pages_dev2/hourly_reports_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -26,21 +30,24 @@ class _MainScaffoldState extends State<MainScaffold> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    const DashboardPage(),                          // Index 0
-    const EmployeesPage(),                          // Index 1
-    const AttendancePage(),                         // Index 2
-    const LeaveManagementPage(),// Index 3
-    const PayrollPage(),                            // Index 4
-    const PerformancePage(),                        // Index 5
-    const HelpdeskPage(),// Index 6
-    const CalendarPage(),                           // Index 7
+    const DashboardPage(), // Index 0
+    const EmployeesPage(), // Index 1
+    const AttendancePage(), // Index 2
+    const LeaveManagementPage(), // Index 3
+    const PayrollPage(), // Index 4
+    const PerformancePage(), // Index 5
+    const HelpdeskPage(), // Index 6
+    const CalendarPage(), // Index 7
     const SelfServicePage(), // Index 8
-    const DepartmentsPage(),   // Index 9
+    const DepartmentsPage(), // Index 9
     const AnnouncementsPage(), // Index 10
-    const DocumentsPage(),// Index 11
-    const AnalyticsPage(),                          // Index 12
-    const AuditLogsPage(),    // Index 13
-    const SettingsPage(),                           // Index 14
+    const DocumentsPage(), // Index 11
+    const AnalyticsPage(), // Index 12
+    const AuditLogsPage(), // Index 13
+    const SettingsPage(), // Index 14
+
+    // NEW
+    const HourlyReportsPage(), // Index 15
   ];
 
   @override
@@ -48,48 +55,154 @@ class _MainScaffoldState extends State<MainScaffold> {
     return Scaffold(
       body: Row(
         children: [
-          // Navigation Sidebar
+          // =====================================================
+          // SIDEBAR
+          // =====================================================
+
           Container(
             width: 260,
             color: const Color(0xFF0F172A),
             child: Column(
               children: [
+                // Logo / App Name
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 24,
+                    horizontal: 16,
+                  ),
                   child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Nexus HRMS',
-                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       SizedBox(height: 4),
                       Text(
                         'Employee Management & HR Operations',
-                        style: TextStyle(color: Colors.grey, fontSize: 11),
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
                 ),
+
+                // Navigation
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                    ),
                     children: [
-                      _navItem(0, Icons.dashboard, 'Dashboard'),
-                      _navItem(1, Icons.people, 'Employees'),
-                      _navItem(2, Icons.access_time, 'Attendance'),
-                      _navItem(3, Icons.event_note, 'Leave Management', badge: '2'),
-                      _navItem(4, Icons.attach_money, 'Payroll & Payslips'),
-                      _navItem(5, Icons.track_changes, 'Goals & Performance'),
-                      _navItem(6, Icons.support_agent, 'Support Helpdesk', badge: '1'),
-                      _navItem(7, Icons.calendar_month, 'Master Calendar'),
-                      _navItem(8, Icons.assignment_ind, 'Self-Service Requests'),
-                      _navItem(9, Icons.business, 'Departments'),
-                      _navItem(10, Icons.campaign, 'Announcements'),
-                      _navItem(11, Icons.folder, 'Document Center'),
-                      _navItem(12, Icons.bar_chart, 'Analytics & Reports'),
-                      _navItem(13, Icons.security, 'Audit Logs', badge: '1'),
-                      _navItem(14, Icons.settings, 'System Settings'),
+                      _navItem(
+                        0,
+                        Icons.dashboard,
+                        'Dashboard',
+                      ),
+
+                      _navItem(
+                        1,
+                        Icons.people,
+                        'Employees',
+                      ),
+
+                      _navItem(
+                        2,
+                        Icons.access_time,
+                        'Attendance',
+                      ),
+
+                      _navItem(
+                        3,
+                        Icons.event_note,
+                        'Leave Management',
+                        badge: '2',
+                      ),
+
+                      _navItem(
+                        4,
+                        Icons.attach_money,
+                        'Payroll & Payslips',
+                      ),
+
+                      _navItem(
+                        5,
+                        Icons.track_changes,
+                        'Goals & Performance',
+                      ),
+
+                      _navItem(
+                        6,
+                        Icons.support_agent,
+                        'Support Helpdesk',
+                        badge: '1',
+                      ),
+
+                      _navItem(
+                        7,
+                        Icons.calendar_month,
+                        'Master Calendar',
+                      ),
+
+                      _navItem(
+                        8,
+                        Icons.assignment_ind,
+                        'Self-Service Requests',
+                      ),
+
+                      _navItem(
+                        9,
+                        Icons.business,
+                        'Departments',
+                      ),
+
+                      _navItem(
+                        10,
+                        Icons.campaign,
+                        'Announcements',
+                      ),
+
+                      _navItem(
+                        11,
+                        Icons.folder,
+                        'Document Center',
+                      ),
+
+                      _navItem(
+                        12,
+                        Icons.bar_chart,
+                        'Analytics & Reports',
+                      ),
+
+                      _navItem(
+                        13,
+                        Icons.security,
+                        'Audit Logs',
+                        badge: '1',
+                      ),
+
+                      _navItem(
+                        14,
+                        Icons.settings,
+                        'System Settings',
+                      ),
+
+
+                      // =================================================
+                      // NEW HOURLY REPORTS SIDEBAR ITEM
+                      // =================================================
+
+                      _navItem(
+                        15,
+                        Icons.access_time_filled,
+                        'Hourly Reports',
+                      ),
                     ],
                   ),
                 ),
@@ -97,64 +210,120 @@ class _MainScaffoldState extends State<MainScaffold> {
             ),
           ),
 
-          // Content Area
+          // =====================================================
+          // CONTENT AREA
+          // =====================================================
+
           Expanded(
             child: Column(
               children: [
-                // Top Header Bar
+                // =================================================
+                // TOP HEADER
+                // =================================================
+
                 Container(
                   height: 65,
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                  ),
                   decoration: const BoxDecoration(
                     color: Colors.white,
-                    border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Color(0xFFE2E8F0),
+                      ),
+                    ),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
                     children: [
+                      // Search
                       SizedBox(
                         width: 380,
                         child: TextField(
                           decoration: InputDecoration(
-                            hintText: 'Search employees by name, ID, or department...',
-                            prefixIcon: const Icon(Icons.search, size: 20),
+                            hintText:
+                            'Search employees by name, ID, or department...',
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              size: 20,
+                            ),
                             filled: true,
-                            fillColor: const Color(0xFFF1F5F9),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                            fillColor:
+                            const Color(0xFFF1F5F9),
+                            contentPadding:
+                            const EdgeInsets.symmetric(
+                              vertical: 0,
+                            ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius:
+                              BorderRadius.circular(8),
                               borderSide: BorderSide.none,
                             ),
                           ),
                         ),
                       ),
+
+                      // Profile
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.notifications_none),
+                            icon: const Icon(
+                              Icons.notifications_none,
+                            ),
                             onPressed: () {},
                           ),
+
                           const SizedBox(width: 12),
+
                           const CircleAvatar(
-                            backgroundColor: Color(0xFF6366F1),
-                            child: Text('SJ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            backgroundColor:
+                            Color(0xFF6366F1),
+                            child: Text(
+                              'SJ',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
+
                           const SizedBox(width: 8),
+
                           const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment:
+                            MainAxisAlignment.center,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
                             children: [
-                              Text('Sarah Jenkins', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              Text('VP of Human Resources', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text(
+                                'Sarah Jenkins',
+                                style: TextStyle(
+                                  fontWeight:
+                                  FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                'VP of Human Resources',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
                             ],
-                          )
+                          ),
                         ],
-                      )
+                      ),
                     ],
                   ),
                 ),
 
-                // Main Dynamic Page View
+                // =================================================
+                // PAGE CONTENT
+                // =================================================
+
                 Expanded(
                   child: IndexedStack(
                     index: _selectedIndex,
@@ -169,46 +338,98 @@ class _MainScaffoldState extends State<MainScaffold> {
     );
   }
 
-  Widget _navItem(int index, IconData icon, String title, {String? badge}) {
-    final isSelected = _selectedIndex == index;
+  // ===========================================================
+  // SIDEBAR NAVIGATION ITEM
+  // ===========================================================
+
+  Widget _navItem(
+      int index,
+      IconData icon,
+      String title, {
+        String? badge,
+      }) {
+    final bool isSelected = _selectedIndex == index;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(
+        vertical: 2,
+      ),
       child: ListTile(
         dense: true,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+
         selected: isSelected,
-        selectedTileColor: const Color(0xFF4F46E5),
-        leading: Icon(icon, size: 18, color: isSelected ? Colors.white : const Color(0xFF94A3B8)),
+
+        selectedTileColor:
+        const Color(0xFF4F46E5),
+
+        leading: Icon(
+          icon,
+          size: 18,
+          color: isSelected
+              ? Colors.white
+              : const Color(0xFF94A3B8),
+        ),
+
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+            color: isSelected
+                ? Colors.white
+                : const Color(0xFF94A3B8),
             fontSize: 13,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontWeight: isSelected
+                ? FontWeight.bold
+                : FontWeight.normal,
           ),
         ),
+
         trailing: badge != null
             ? Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 2,
+          ),
           decoration: BoxDecoration(
             color: Colors.red,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius:
+            BorderRadius.circular(10),
           ),
           child: Text(
             badge,
-            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         )
             : null,
-        onTap: () => setState(() => _selectedIndex = index),
+
+        onTap: () {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
     );
   }
 }
 
+// ============================================================
+// PLACEHOLDER
+// ============================================================
+
 class Dev2Placeholder extends StatelessWidget {
   final String title;
-  const Dev2Placeholder({super.key, required this.title});
+
+  const Dev2Placeholder({
+    super.key,
+    required this.title,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +437,10 @@ class Dev2Placeholder extends StatelessWidget {
       child: Text(
         '$title Page\n(Assigned to Developer 2)',
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 18, color: Colors.grey),
+        style: const TextStyle(
+          fontSize: 18,
+          color: Colors.grey,
+        ),
       ),
     );
   }
